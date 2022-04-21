@@ -67,17 +67,20 @@ abstract contract YearnWrapping is IBaseRelayerLibrary {
             amount = _getChainedReferenceValue(amount);
         }
 
+        // the underlying token
+        IERC20 underlyingToken = vaultToken.token();
+
         // The wrap caller is the implicit sender of tokens, so if the goal is for the tokens
         // to be sourced from outside the relayer, we must first pull them here.
         if (sender != address(this)) {
             require(sender == msg.sender, "Incorrect sender");
-            _pullToken(sender, vaultToken, amount);
+            _pullToken(sender, underlyingToken, amount);
         }
 
         //approve the vault token to spend the amount specified in the wrap
-        vaultToken.approve(address(vaultToken), amount);
+        underlyingToken.approve(address(vaultToken), amount);
 
-        //deposit the tokens into the vault
+        //deposit the tokens into the vault on behalf of the recipient
         uint256 shares = vaultToken.deposit(amount, recipient);
 
         if (_isChainedReference(outputReference)) {
