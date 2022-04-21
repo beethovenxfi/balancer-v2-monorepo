@@ -25,20 +25,24 @@ import "./relayer/YearnWrapping.sol";
 import "./relayer/MasterChefStaking.sol";
 import "./relayer/FBeetsBarStaking.sol";
 import "./relayer/BooMirrorWorldStaking.sol";
+import "./relayer/FBeetsBarV2Staking.sol";
+import "./relayer/TarotWrapping.sol";
+import "./relayer/ReaperWrapping.sol";
 
 /**
  * @title Batch Relayer Library
  * @notice This contract is not a relayer by itself and calls into it directly will fail.
  * The associated relayer can be found by calling `getEntrypoint` on this contract.
  */
-contract BatchRelayerLibrary is BaseRelayerLibrary, AaveWrapping, LidoWrapping, YearnWrapping, MasterChefStaking, FBeetsBarStaking, BooMirrorWorldStaking, VaultActions, VaultPermit {
+contract BatchRelayerLibrary is BaseRelayerLibrary, AaveWrapping, LidoWrapping, YearnWrapping, MasterChefStaking, FBeetsBarStaking, BooMirrorWorldStaking, FBeetsBarV2Staking, TarotWrapping, ReaperWrapping, VaultActions, VaultPermit {
     constructor(
         IVault vault,
         IERC20 wstETH,
         IMasterChef masterChef,
         IFBeetsBar fBeetsBar,
-        IBooMirrorWorld mirrorWorld
-    ) BaseRelayerLibrary(vault) LidoWrapping(wstETH) MasterChefStaking(masterChef) FBeetsBarStaking(fBeetsBar) BooMirrorWorldStaking(mirrorWorld) {
+        IBooMirrorWorld mirrorWorld,
+        IFBeetsBar fBeetsBarV2
+    ) BaseRelayerLibrary(vault) LidoWrapping(wstETH) MasterChefStaking(masterChef) FBeetsBarStaking(fBeetsBar) BooMirrorWorldStaking(mirrorWorld) FBeetsBarV2Staking(fBeetsBarV2) {
         // solhint-disable-previous-line no-empty-blocks
     }
 }
