@@ -17,6 +17,8 @@ pragma solidity ^0.7.0;
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/IERC20.sol";
 
 interface IYearnTokenVault is IERC20 {
+    function token() external view returns (IERC20);
+
     /**
      * @notice Deposits `_amount` `token`, issuing shares to `recipient`. If the Vault is in Emergency Shutdown, deposits will not be accepted and this call will fail.
      * @param _amount The quantity of tokens to deposit, defaults to all.
