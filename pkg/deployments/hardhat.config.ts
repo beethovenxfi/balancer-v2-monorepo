@@ -50,5 +50,12 @@ export default {
       saveDeployments: true,
       gasMultiplier: 10,
     },
+    optimism: {
+      chainId: 10,
+      url: `https://mainnet.optimism.io/`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+      saveDeployments: true,
+      gasMultiplier: 10,
+    },
   },
 };

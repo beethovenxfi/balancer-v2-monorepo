@@ -1,0 +1,46 @@
+{
+  "TEST-WEIGHTED": {
+    "address": "0x7aD4f5536D903aea6F973f36e18f5B4610A7583E",
+    "id": "0x7ad4f5536d903aea6f973f36e18f5b4610a7583e000100000000000000000000",
+    "symbol": "TEST-WEIGHTED",
+    "blockHash": "0x9f4fafead29e4c8ca7595ed7aa5be537538f65c75cf9a68a68f2ed310587a19a",
+    "name": "Test pool",
+    "tokens": [
+      "0x4200000000000000000000000000000000000006",
+      "0x68f180fcCe6836688e9084f035309E29Bf0A2095",
+      "0x7F5c764cBc14f9669B88837ca1490cCa17c31607"
+    ],
+    "weights": [
+      {
+        "type": "BigNumber",
+        "hex": "0x04a03ce68d215555"
+      },
+      {
+        "type": "BigNumber",
+        "hex": "0x04a03ce68d215555"
+      },
+      {
+        "type": "BigNumber",
+        "hex": "0x04a03ce68d215556"
+      }
+    ],
+    "initialBalances": [
+      {
+        "type": "BigNumber",
+        "hex": "0x01cfd7a0d5e000"
+      },
+      {
+        "type": "BigNumber",
+        "hex": "0x0d48"
+      },
+      {
+        "type": "BigNumber",
+        "hex": "0x989680"
+      }
+    ],
+    "swapFeePercentage": {
+      "type": "BigNumber",
+      "hex": "0x08e1bc9bf04000"
+    }
+  }
+}
