@@ -37,8 +37,9 @@ interface CreateStablePoolParams {
 }
 
 export async function createStablePool(params: CreateStablePoolParams): Promise<void> {
+  logger.info("Let's gooo")
   const { name, symbol, tokens, amplificationParameter, swapFeePercentage, owner, initialBalances } = params;
-  const stablePoolFactoryAddress = getTaskOutputFile('20210624-stable-pool').StablePoolFactory;
+  const stablePoolFactoryAddress = getTaskOutputFile('20220609-stable-pool-v2').StablePoolFactory;
   const vaultAddress = getVaultAddress();
   const factory = await ethers.getContractAt(StablePoolFactory, stablePoolFactoryAddress);
   const vault = await ethers.getContractAt(Vault, vaultAddress);
