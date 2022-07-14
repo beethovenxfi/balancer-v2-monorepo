@@ -3,3 +3,4 @@ test.json
 
 # Build directory
 dist
+.env

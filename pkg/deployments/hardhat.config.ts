@@ -1,55 +1,60 @@
+import dotenv from 'dotenv';
 import '@nomiclabs/hardhat-ethers';
-import '@nomiclabs/hardhat-waffle';
-import 'hardhat-local-networks-config-plugin';
-
-import '@balancer-labs/v2-common/setupTests';
-
-import { task, types } from 'hardhat/config';
-import { TASK_TEST } from 'hardhat/builtin-tasks/task-names';
+import { task } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
+import { Logger } from '@balancer-labs/v2-deployments/src/logger';
+import fs from 'fs';
+import path from 'path';
 
-import test from './src/test';
-import Task from './src/task';
-import Verifier from './src/verifier';
-import { Logger } from './src/logger';
+dotenv.config();
 
 task('deploy', 'Run deployment task')
-  .addParam('id', 'Deployment task ID')
-  .addFlag('force', 'Ignore previous deployments')
-  .addOptionalParam('key', 'Etherscan API key to verify contracts')
-  .setAction(
-    async (args: { id: string; force?: boolean; key?: string; verbose?: boolean }, hre: HardhatRuntimeEnvironment) => {
-      Logger.setDefaults(false, args.verbose || false);
-      const verifier = args.key ? new Verifier(hre.network, args.key) : undefined;
-      await Task.fromHRE(args.id, hre, verifier).run(args);
-    }
-  );
-
-task('verify-contract', 'Run verification for a given contract')
-  .addParam('id', 'Deployment task ID')
-  .addParam('name', 'Contract name')
-  .addParam('address', 'Contract address')
-  .addParam('args', 'ABI-encoded constructor arguments')
   .addParam('key', 'Etherscan API key to verify contracts')
-  .setAction(
-    async (
-      args: { id: string; name: string; address: string; key: string; args: string; verbose?: boolean },
-      hre: HardhatRuntimeEnvironment
-    ) => {
-      Logger.setDefaults(false, args.verbose || false);
-      const verifier = args.key ? new Verifier(hre.network, args.key) : undefined;
+  .setAction(async (args: { id: string; key: string }, hre: HardhatRuntimeEnvironment) => {
+    Logger.setDefaults(false, true);
+    const migrationsPath = path.resolve(__dirname, `./deployments/${hre.network.name}/migrations`);
 
-      await Task.fromHRE(args.id, hre, verifier).verify(args.name, args.address, args.args);
+    if (!fs.existsSync(migrationsPath)) {
+      throw new Error(
+        `There are no migrations for your chosen network: ${hre.network.name}. Please create your migrations in ./deployments/${hre.network.name}/migrations and rerun the deploy task.`
+      );
     }
-  );
 
-task(TASK_TEST)
-  .addOptionalParam('fork', 'Optional network name to be forked block number to fork in case of running fork tests.')
-  .addOptionalParam('blockNumber', 'Optional block number to fork in case of running fork tests.', undefined, types.int)
-  .setAction(test);
+    //fetch all files in the migrations directory for the specified network
+    const migrationFiles = fs.readdirSync(migrationsPath);
+
+    for (const migrationFile of migrationFiles) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const migration = require(path.resolve(migrationsPath, migrationFile)).default;
+      await migration(args.key);
+    }
+  });
+
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER || '0000000000000000000000000000000000000000000000000000000000000000';
+const INFURA_KEY = process.env.INFURA_KEY || '';
 
 export default {
-  mocha: {
-    timeout: 40000,
+  networks: {
+    opera: {
+      chainId: 250,
+      url: `https://rpc.ftm.tools/`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+      saveDeployments: true,
+      gasMultiplier: 10,
+    },
+    rinkeby: {
+      chainId: 4,
+      url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+      saveDeployments: true,
+      gasMultiplier: 10,
+    },
+    optimism: {
+      chainId: 10,
+      url: `https://mainnet.optimism.io/`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+      saveDeployments: true,
+      gasMultiplier: 10,
+    },
   },
 };
