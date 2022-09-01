@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-waffle';
 import 'hardhat-local-networks-config-plugin';
@@ -195,8 +198,30 @@ task(TASK_TEST)
   .addOptionalParam('blockNumber', 'Optional block number to fork in case of running fork tests.', undefined, types.int)
   .setAction(test);
 
+
+
+const DEPLOYER_PRIVATE_KEY =
+process.env.DEPLOYER_PRIVATE_KEY || '0000000000000000000000000000000000000000000000000000000000000000';
+const INFURA_KEY = process.env.INFURA_KEY || '';
+
 export default {
-  mocha: {
-    timeout: 600000,
+  networks: {
+    opera: {
+      chainId: 250,
+      url: `https://rpc.ftm.tools/`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+    },
+    optimism: {
+      chainId: 10,
+      url: `https://mainnet.optimism.io/`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+    },
+    rinkeby: {
+      chainId: 4,
+      url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+      saveDeployments: true,
+      gasMultiplier: 10,
+    },
   },
 };
