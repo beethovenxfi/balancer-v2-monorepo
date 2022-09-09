@@ -97,7 +97,7 @@ contract ComposableStablePool is
         StablePoolAmplification(params.amplificationParameter)
         ComposableStablePoolStorage(_extractStorageParams(params))
         ComposableStablePoolRates(_extractRatesParams(params))
-        ProtocolFeeCache(params.protocolFeeProvider, ProtocolFeeCache.DELEGATE_PROTOCOL_SWAP_FEES_SENTINEL)
+        ProtocolFeeCache(params.protocolFeeProvider)
     {
         // solhint-disable-previous-line no-empty-blocks
     }
@@ -1065,9 +1065,7 @@ contract ComposableStablePool is
             uint256 currentInvariantWithLastJoinExitAmp
         ) = _getSupplyAndFeesData();
 
-        if (protocolFeeAmount > 0) {
-            _payProtocolFees(protocolFeeAmount);
-        }
+        _payProtocolFees(protocolFeeAmount);
 
         // With the fees paid, we now need to calculate the current invariant so we can store it alongside the current
         // amplification factor, marking the Pool as free of protocol debt.
