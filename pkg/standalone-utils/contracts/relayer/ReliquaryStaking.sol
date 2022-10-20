@@ -29,14 +29,44 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
     using Address for address payable;
 
     IReliquary private immutable _reliquary;
+    IERC20 private immutable _rewardToken;
 
     constructor(IReliquary reliquary) {
         _reliquary = reliquary;
+        _rewardToken = reliquary.rewardToken();
+    }
+
+    function reliquaryMintAndDeposit(
+        address sender,
+        address recipient,
+        IERC20 token,
+        uint256 poolId,
+        uint256 amount,
+        uint256 outputReference
+    ) external payable {
+        if (_isChainedReference(amount)) {
+            amount = _getChainedReferenceValue(amount);
+        }
+        require(_reliquary.poolToken(poolId) == token, "Incorrect token provided");
+
+        // The deposit caller is the implicit sender of tokens, so if the goal is for the tokens
+        // to be sourced from outside the relayer, we must first pull them here.
+        if (sender != address(this)) {
+            require(sender == msg.sender, "Incorrect sender");
+            _pullToken(sender, token, amount);
+        }
+
+        // deposit the tokens to the masterchef
+        token.approve(address(_reliquary), amount);
+        _reliquary.createRelicAndDeposit(recipient, poolId, amount);
+
+        if (_isChainedReference(outputReference)) {
+            _setChainedReferenceValue(outputReference, amount);
+        }
     }
 
     function reliquaryDeposit(
         address sender,
-        address recipient,
         IERC20 token,
         uint256 relicId,
         uint256 amount,
@@ -45,6 +75,8 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         if (_isChainedReference(amount)) {
             amount = _getChainedReferenceValue(amount);
         }
+        PositionInfo memory position = _reliquary.getPositionForId(relicId);
+        require(_reliquary.poolToken(position.poolId) == token, "Incorrect token provided");
 
         // The deposit caller is the implicit sender of tokens, so if the goal is for the tokens
         // to be sourced from outside the relayer, we must first pull them here.
@@ -71,10 +103,15 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         if (_isChainedReference(amount)) {
             amount = _getChainedReferenceValue(amount);
         }
+        PositionInfo memory position = _reliquary.getPositionForId(relicId);
+        IERC20 token = _reliquary.poolToken(position.poolId);
 
         // withdraw the token from the masterchef, sending it to the recipient
         _reliquary.withdrawAndHarvest(amount, relicId);
-        // todo: send lps & rewards to recipient
+        // we transfer the rewards
+        _rewardToken.transfer(recipient, _rewardToken.balanceOf(address(this)));
+        // now we transfer the staked token
+        token.transfer(recipient, amount);
 
         if (_isChainedReference(outputReference)) {
             _setChainedReferenceValue(outputReference, amount);

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.7.0;
+pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 
@@ -68,4 +69,10 @@ interface IReliquary {
     function emergencyWithdraw(uint256 relicId) external;
 
     function poolToken(uint256 pid) external returns (IERC20);
+
+    function getPositionForId(uint256) external view returns (PositionInfo memory);
+
+    function ownerOf(uint256 tokenId) external view returns (address);
+
+    function rewardToken() external view returns (IERC20);
 }
