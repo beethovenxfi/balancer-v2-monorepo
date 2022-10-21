@@ -51,7 +51,9 @@ describe('YearnWrapping', function () {
 
   sharedBeforeEach('set up relayer', async () => {
     // Deploy Relayer
-    relayerLibrary = await deploy('MockBatchRelayerLibrary', { args: [vault.address, ZERO_ADDRESS, ZERO_ADDRESS] });
+    relayerLibrary = await deploy('MockBatchRelayerLibrary', {
+      args: [vault.address, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS],
+    });
     relayer = await deployedAt('BalancerRelayer', await relayerLibrary.getEntrypoint());
 
     // Authorize Relayer for all actions
@@ -109,9 +111,7 @@ describe('YearnWrapping', function () {
     const yvDaiForAmount = amount.mul(fp(1)).div(yvDaiRate);
 
     it('should deposit underlying tokens into a yearn vault on wrap', async () => {
-      const receipt = await (
-        await relayer.connect(user).multicall([encodeWrap(yvDAI, user, user, amount)])
-      ).wait();
+      const receipt = await (await relayer.connect(user).multicall([encodeWrap(yvDAI, user, user, amount)])).wait();
 
       expectTransferEvent(receipt, { from: user.address, to: relayer.address, value: amount }, dai);
       expectTransferEvent(receipt, { from: ZERO_ADDRESS, to: user.address, value: yvDaiForAmount }, yvDAI);
@@ -126,13 +126,11 @@ describe('YearnWrapping', function () {
 
       const balance = await yvDAI.balanceOf(relayer.address);
 
-      expect(balance).to.be.equalWithError(yvDaiForAmount , 0.00001);
+      expect(balance).to.be.equalWithError(yvDaiForAmount, 0.00001);
     });
 
     it('stores wrap output as chained reference', async () => {
-      await relayer
-        .connect(user)
-        .multicall([encodeWrap(yvDAI, user, relayer.address, amount, toChainedReference(0))]);
+      await relayer.connect(user).multicall([encodeWrap(yvDAI, user, relayer.address, amount, toChainedReference(0))]);
 
       await expectChainedReferenceContents(relayer, toChainedReference(0), yvDaiForAmount);
     });
@@ -141,28 +139,24 @@ describe('YearnWrapping', function () {
       await setChainedReferenceContents(toChainedReference(0), amount);
 
       const receipt = await (
-        await relayer
-          .connect(user)
-          .multicall([encodeWrap(yvDAI, user, relayer.address, toChainedReference(0))])
+        await relayer.connect(user).multicall([encodeWrap(yvDAI, user, relayer.address, toChainedReference(0))])
       ).wait();
 
       expectTransferEvent(receipt, { from: user.address, to: relayer.address, value: amount }, dai);
       expectTransferEvent(receipt, { from: ZERO_ADDRESS, to: relayer.address, value: yvDaiForAmount }, yvDAI);
     });
-  });    
+  });
 
   describe('unwrapping', () => {
     const amount = fp(1);
     const daiForAmount = amount.mul(yvDaiRate).div(fp(1));
 
     sharedBeforeEach('deposit tokens to vault', async () => {
-      await yvDAI.connect(user).deposit(daiForAmount, user.address)
+      await yvDAI.connect(user).deposit(daiForAmount, user.address);
     });
 
     it('should withdraw underlying tokens from a yearn vault on unwrap', async () => {
-      const receipt = await (
-        await relayer.connect(user).multicall([encodeUnwrap(yvDAI, user, user, amount)])
-      ).wait();
+      const receipt = await (await relayer.connect(user).multicall([encodeUnwrap(yvDAI, user, user, amount)])).wait();
 
       expectTransferEvent(receipt, { from: user.address, to: relayer.address, value: amount }, yvDAI);
       expectTransferEvent(receipt, { from: yvDAI.address, to: user.address, value: daiForAmount }, dai);
@@ -177,13 +171,11 @@ describe('YearnWrapping', function () {
 
       const balance = await dai.balanceOf(relayer.address);
 
-      expect(balance).to.be.equalWithError(daiForAmount , 0.00001);
+      expect(balance).to.be.equalWithError(daiForAmount, 0.00001);
     });
 
     it('stores unwrap output as chained reference', async () => {
-      await relayer
-        .connect(user)
-        .multicall([encodeUnwrap(yvDAI, user, relayer, amount, toChainedReference(0))]);
+      await relayer.connect(user).multicall([encodeUnwrap(yvDAI, user, relayer, amount, toChainedReference(0))]);
 
       await expectChainedReferenceContents(relayer, toChainedReference(0), daiForAmount);
     });

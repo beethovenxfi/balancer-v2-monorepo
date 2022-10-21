@@ -28,8 +28,9 @@ contract MockBatchRelayerLibrary is BatchRelayerLibrary {
         IBalancerMinter minter,
         IMasterChef masterChef,
         IBooMirrorWorld mirrorWorld,
-        IFBeetsBar fBeetsBar
-    ) BatchRelayerLibrary(vault, wstETH, minter, masterChef, mirrorWorld, fBeetsBar) {}
+        IFBeetsBar fBeetsBar,
+        IReliquary reliquary
+    ) BatchRelayerLibrary(vault, wstETH, minter, masterChef, mirrorWorld, fBeetsBar, reliquary) {}
 
     //) BatchRelayerLibrary(vault, wstETH, minter, masterChef, mirrorWorld, fBeetsBar, reliquary) {}
 

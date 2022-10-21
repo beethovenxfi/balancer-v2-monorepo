@@ -21,8 +21,8 @@ import "@balancer-labs/v2-interfaces/contracts/liquidity-mining/IReliquary.sol";
 import "./IBaseRelayerLibrary.sol";
 
 /**
- * @title MasterChefStaking
- * @notice Allows users to deposit and withdraw BPT to/from a MasterChef contract
+ * @title ReliquaryStaking
+ * @notice Allows users to deposit and withdraw BPT to/from relic
  * @dev All functions must be payable so that it can be called as part of a multicall involving ETH
  */
 abstract contract ReliquaryStaking is IBaseRelayerLibrary {
@@ -33,10 +33,15 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
 
     constructor(IReliquary reliquary) {
         _reliquary = reliquary;
-        _rewardToken = reliquary.rewardToken();
+
+        IERC20 rewardToken = IERC20(address(0));
+        if (address(reliquary) != address(0)) {
+            rewardToken = reliquary.rewardToken();
+        }
+        _rewardToken = rewardToken;
     }
 
-    function reliquaryMintAndDeposit(
+    function reliquaryCreateRelicAndDeposit(
         address sender,
         address recipient,
         IERC20 token,
