@@ -82,6 +82,8 @@ interface IReliquary is IERC721, IERC721Enumerable {
         bool overwriteRewarder
     ) external;
 
+    function setEmissionCurve(IEmissionCurve _emissionCurve) external;
+
     function pendingReward(uint256 relicId) external view returns (uint256 pending);
 
     function levelOnUpdate(uint256 relicId) external view returns (uint256 level);
@@ -107,20 +109,6 @@ interface IReliquary is IERC721, IERC721Enumerable {
     function emergencyWithdraw(uint256 relicId) external;
 
     function updatePosition(uint256 relicId) external;
-
-    function split(
-        uint256 relicId,
-        uint256 amount,
-        address to
-    ) external returns (uint256 newId);
-
-    function shift(
-        uint256 fromId,
-        uint256 toId,
-        uint256 amount
-    ) external;
-
-    function merge(uint256 fromId, uint256 toId) external;
 
     // State
 

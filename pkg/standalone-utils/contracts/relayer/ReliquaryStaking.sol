@@ -19,6 +19,7 @@ import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Address.sol";
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 import "@balancer-labs/v2-interfaces/contracts/liquidity-mining/IReliquary.sol";
 import "@balancer-labs/v2-interfaces/contracts/liquidity-mining/IReliquaryRewarder.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/SafeERC20.sol";
 import "./IBaseRelayerLibrary.sol";
 
 /**
@@ -28,18 +29,12 @@ import "./IBaseRelayerLibrary.sol";
  */
 abstract contract ReliquaryStaking is IBaseRelayerLibrary {
     using Address for address payable;
+    using SafeERC20 for IERC20;
 
     IReliquary private immutable _reliquary;
-    IERC20 private immutable _rewardToken;
 
     constructor(IReliquary reliquary) {
         _reliquary = reliquary;
-
-        IERC20 rewardToken = IERC20(address(0));
-        if (address(reliquary) != address(0)) {
-            rewardToken = reliquary.rewardToken();
-        }
-        _rewardToken = rewardToken;
     }
 
     function reliquaryCreateRelicAndDeposit(
@@ -109,21 +104,22 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         if (_isChainedReference(amount)) {
             amount = _getChainedReferenceValue(amount);
         }
+        IERC20 rewardToken = _reliquary.rewardToken();
         PositionInfo memory position = _reliquary.getPositionForId(relicId);
-        IERC20 token = _reliquary.poolToken(position.poolId);
+        IERC20 poolToken = _reliquary.poolToken(position.poolId);
 
         // withdraw the token from the masterchef, sending it to the recipient
         _reliquary.withdrawAndHarvest(amount, relicId);
         // we transfer the base emission rewards
-        _rewardToken.transfer(recipient, _rewardToken.balanceOf(address(this)));
-        // now we have to check if there are additional rewards
+        rewardToken.transfer(recipient, rewardToken.balanceOf(address(this)));
+        // now we have to check if we got additional rewards
         IRewarder rewarder = _reliquary.rewarder(position.poolId);
         if (address(rewarder) != address(0)) {
             IERC20 additionalRewardToken = IRewarder(rewarder).rewardToken();
             additionalRewardToken.transfer(recipient, additionalRewardToken.balanceOf(address(this)));
         }
         // now we transfer the staked token
-        token.transfer(recipient, amount);
+        poolToken.transfer(recipient, amount);
 
         if (_isChainedReference(outputReference)) {
             _setChainedReferenceValue(outputReference, amount);
@@ -132,9 +128,23 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
 
     function harvestAll(address recipient) external payable {
         uint256 balance = _reliquary.balanceOf(msg.sender);
-        for (uint256 i = 0; i < balance; i++) {
-            _reliquary.harvest(_reliquary.tokenOfOwnerByIndex(msg.sender, i));
+        if (balance == 0) {
+            return;
         }
-        _rewardToken.transfer(recipient, _rewardToken.balanceOf(address(this)));
+        IERC20 rewardToken = _reliquary.rewardToken();
+        for (uint256 i = 0; i < balance; i++) {
+            uint256 relicId = _reliquary.tokenOfOwnerByIndex(msg.sender, i);
+            PositionInfo memory position = _reliquary.getPositionForId(relicId);
+            // we harvest the base emissions
+            _reliquary.harvest(relicId);
+            // now we have to check if we got additional rewards
+            // since each rewarder can have a different reward token, we transfer them right away
+            IRewarder rewarder = _reliquary.rewarder(position.poolId);
+            if (address(rewarder) != address(0)) {
+                IERC20 additionalRewardToken = IRewarder(rewarder).rewardToken();
+                additionalRewardToken.transfer(recipient, additionalRewardToken.balanceOf(address(this)));
+            }
+        }
+        rewardToken.transfer(recipient, rewardToken.balanceOf(address(this)));
     }
 }
