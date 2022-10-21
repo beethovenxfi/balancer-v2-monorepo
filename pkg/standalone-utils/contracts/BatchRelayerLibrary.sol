@@ -46,9 +46,8 @@ contract BatchRelayerLibrary is
     YearnWrapping,
     ReaperWrapping,
     MasterChefStaking,
-    FBeetsBarStaking,
     BooMirrorWorldStaking,
-    ReliquaryStaking,
+    FBeetsBarStaking,
     VaultActions,
     VaultPermit
 {
@@ -58,16 +57,15 @@ contract BatchRelayerLibrary is
         IBalancerMinter minter,
         IMasterChef masterChef,
         IBooMirrorWorld mirrorWorld,
-        IFBeetsBar fBeetsBar,
-        IReliquary reliquary
+        IFBeetsBar fBeetsBar
     )
+        // IReliquary reliquary
         BaseRelayerLibrary(vault)
         LidoWrapping(wstETH)
         GaugeActions(minter)
         MasterChefStaking(masterChef)
-        FBeetsBarStaking(fBeetsBar)
         BooMirrorWorldStaking(mirrorWorld)
-        ReliquaryStaking(reliquary)
+        FBeetsBarStaking(fBeetsBar)
     {
         // solhint-disable-previous-line no-empty-blocks
     }

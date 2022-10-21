@@ -28,9 +28,10 @@ contract MockBatchRelayerLibrary is BatchRelayerLibrary {
         IBalancerMinter minter,
         IMasterChef masterChef,
         IBooMirrorWorld mirrorWorld,
-        IFBeetsBar fBeetsBar,
-        IReliquary reliquary
-    ) BatchRelayerLibrary(vault, wstETH, minter, masterChef, mirrorWorld, fBeetsBar, reliquary) {}
+        IFBeetsBar fBeetsBar
+    ) BatchRelayerLibrary(vault, wstETH, minter, masterChef, mirrorWorld, fBeetsBar) {}
+
+    //) BatchRelayerLibrary(vault, wstETH, minter, masterChef, mirrorWorld, fBeetsBar, reliquary) {}
 
     function setChainedReferenceValue(uint256 ref, uint256 value) public returns (uint256) {
         _setChainedReferenceValue(ref, value);
