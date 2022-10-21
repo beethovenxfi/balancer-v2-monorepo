@@ -4,6 +4,17 @@ pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
+import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC721Enumerable.sol";
+import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC721.sol";
+import "./IReliquaryRewarder.sol";
+
+interface IEmissionCurve {
+    function getRate(uint256 lastRewardTime) external view returns (uint256 rate);
+}
+
+interface INFTDescriptor {
+    function constructTokenURI(uint256 relicId) external view returns (string memory);
+}
 
 /*
  + @notice Info for each Reliquary position.
@@ -49,8 +60,35 @@ struct LevelInfo {
     uint256[] balance;
 }
 
-interface IReliquary {
+interface IReliquary is IERC721, IERC721Enumerable {
     function burn(uint256 tokenId) external;
+
+    function addPool(
+        uint256 allocPoint,
+        IERC20 _poolToken,
+        IRewarder _rewarder,
+        uint256[] calldata requiredMaturity,
+        uint256[] calldata allocPoints,
+        string memory name,
+        INFTDescriptor _nftDescriptor
+    ) external;
+
+    function modifyPool(
+        uint256 pid,
+        uint256 allocPoint,
+        IRewarder _rewarder,
+        string calldata name,
+        INFTDescriptor _nftDescriptor,
+        bool overwriteRewarder
+    ) external;
+
+    function pendingReward(uint256 relicId) external view returns (uint256 pending);
+
+    function levelOnUpdate(uint256 relicId) external view returns (uint256 level);
+
+    function massUpdatePools(uint256[] calldata pids) external;
+
+    function updatePool(uint256 pid) external;
 
     function createRelicAndDeposit(
         address to,
@@ -68,11 +106,41 @@ interface IReliquary {
 
     function emergencyWithdraw(uint256 relicId) external;
 
-    function poolToken(uint256 pid) external returns (IERC20);
+    function updatePosition(uint256 relicId) external;
+
+    function split(
+        uint256 relicId,
+        uint256 amount,
+        address to
+    ) external returns (uint256 newId);
+
+    function shift(
+        uint256 fromId,
+        uint256 toId,
+        uint256 amount
+    ) external;
+
+    function merge(uint256 fromId, uint256 toId) external;
+
+    // State
+
+    function rewardToken() external view returns (IERC20);
+
+    function nftDescriptor(uint256) external view returns (INFTDescriptor);
+
+    function emissionCurve() external view returns (IEmissionCurve);
+
+    function getPoolInfo(uint256) external view returns (PoolInfo memory);
+
+    function getLevelInfo(uint256) external view returns (LevelInfo memory);
+
+    function poolToken(uint256) external view returns (IERC20);
+
+    function rewarder(uint256) external view returns (IRewarder);
 
     function getPositionForId(uint256) external view returns (PositionInfo memory);
 
-    function ownerOf(uint256 tokenId) external view returns (address);
+    function totalAllocPoint() external view returns (uint256);
 
-    function rewardToken() external view returns (IERC20);
+    function poolLength() external view returns (uint256);
 }

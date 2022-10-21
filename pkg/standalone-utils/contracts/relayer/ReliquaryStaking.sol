@@ -18,6 +18,7 @@ pragma experimental ABIEncoderV2;
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Address.sol";
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 import "@balancer-labs/v2-interfaces/contracts/liquidity-mining/IReliquary.sol";
+import "@balancer-labs/v2-interfaces/contracts/liquidity-mining/IReliquaryRewarder.sol";
 import "./IBaseRelayerLibrary.sol";
 
 /**
@@ -113,13 +114,27 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
 
         // withdraw the token from the masterchef, sending it to the recipient
         _reliquary.withdrawAndHarvest(amount, relicId);
-        // we transfer the rewards
+        // we transfer the base emission rewards
         _rewardToken.transfer(recipient, _rewardToken.balanceOf(address(this)));
+        // now we have to check if there are additional rewards
+        IRewarder rewarder = _reliquary.rewarder(position.poolId);
+        if (address(rewarder) != address(0)) {
+            IERC20 additionalRewardToken = IRewarder(rewarder).rewardToken();
+            additionalRewardToken.transfer(recipient, additionalRewardToken.balanceOf(address(this)));
+        }
         // now we transfer the staked token
         token.transfer(recipient, amount);
 
         if (_isChainedReference(outputReference)) {
             _setChainedReferenceValue(outputReference, amount);
         }
+    }
+
+    function harvestAll(address recipient) external payable {
+        uint256 balance = _reliquary.balanceOf(msg.sender);
+        for (uint256 i = 0; i < balance; i++) {
+            _reliquary.harvest(_reliquary.tokenOfOwnerByIndex(msg.sender, i));
+        }
+        _rewardToken.transfer(recipient, _rewardToken.balanceOf(address(this)));
     }
 }
