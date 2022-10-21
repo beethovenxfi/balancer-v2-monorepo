@@ -48,7 +48,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         if (_isChainedReference(amount)) {
             amount = _getChainedReferenceValue(amount);
         }
-        require(_reliquary.poolToken(poolId) == token, "Incorrect token provided");
+        require(_reliquary.poolToken(poolId) == token, "Incorrect token for pid");
 
         // The deposit caller is the implicit sender of tokens, so if the goal is for the tokens
         // to be sourced from outside the relayer, we must first pull them here.
@@ -77,7 +77,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
             amount = _getChainedReferenceValue(amount);
         }
         PositionInfo memory position = _reliquary.getPositionForId(relicId);
-        require(_reliquary.poolToken(position.poolId) == token, "Incorrect token provided");
+        require(_reliquary.poolToken(position.poolId) == token, "Incorrect token for pid");
 
         // The deposit caller is the implicit sender of tokens, so if the goal is for the tokens
         // to be sourced from outside the relayer, we must first pull them here.
@@ -88,7 +88,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
 
         // deposit the tokens to the masterchef
         token.approve(address(_reliquary), amount);
-        _reliquary.deposit(relicId, amount);
+        _reliquary.deposit(amount, relicId);
 
         if (_isChainedReference(outputReference)) {
             _setChainedReferenceValue(outputReference, amount);
@@ -111,12 +111,18 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         // withdraw the token from the masterchef, sending it to the recipient
         _reliquary.withdrawAndHarvest(amount, relicId);
         // we transfer the base emission rewards
-        rewardToken.transfer(recipient, rewardToken.balanceOf(address(this)));
+        uint256 emissionRewards = rewardToken.balanceOf(address(this));
+        if (emissionRewards > 0) {
+            rewardToken.transfer(recipient, emissionRewards);
+        }
         // now we have to check if we got additional rewards
         IRewarder rewarder = _reliquary.rewarder(position.poolId);
         if (address(rewarder) != address(0)) {
-            IERC20 additionalRewardToken = IRewarder(rewarder).rewardToken();
-            additionalRewardToken.transfer(recipient, additionalRewardToken.balanceOf(address(this)));
+            IERC20 additionalRewardToken = rewarder.rewardToken();
+            uint256 additionalRewards = additionalRewardToken.balanceOf(address(this));
+            if (additionalRewards > 0) {
+                additionalRewardToken.transfer(recipient, additionalRewards);
+            }
         }
         // now we transfer the staked token
         poolToken.transfer(recipient, amount);

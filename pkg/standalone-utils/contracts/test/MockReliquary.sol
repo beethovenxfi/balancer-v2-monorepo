@@ -10,6 +10,24 @@ import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC7
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ReentrancyGuard.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ERC721.sol";
 
+contract Constant is IEmissionCurve {
+    uint256 public _rate;
+
+    constructor(uint256 rate) {
+        _rate = rate;
+    }
+
+    function getRate(uint256) external view override returns (uint256 rate) {
+        rate = _rate;
+    }
+}
+
+contract NFTDescriptor is INFTDescriptor {
+    function constructTokenURI(uint256) external pure override returns (string memory) {
+        return "";
+    }
+}
+
 contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -74,9 +92,9 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
      + @param _rewardToken The reward token contract address.
      + @param _emissionCurve The contract address for the EmissionCurve, which will return the emission rate
     */
-    constructor(IERC20 _rewardToken, IEmissionCurve _emissionCurve) ERC721("Reliquary Deposit", "RELIC") {
+    constructor(IERC20 _rewardToken, uint256 _emissionRate) ERC721("Reliquary Deposit", "RELIC") {
         rewardToken = _rewardToken;
-        emissionCurve = _emissionCurve;
+        emissionCurve = new Constant(_emissionRate);
     }
 
     /// @notice Implement ERC165 to return which interfaces this contract conforms to
@@ -137,7 +155,7 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
         uint256[] calldata requiredMaturity,
         uint256[] calldata allocPoints,
         string memory name,
-        INFTDescriptor _nftDescriptor
+        INFTDescriptor
     ) external override {
         require(_poolToken != rewardToken, "cannot add reward token as pool");
         require(requiredMaturity.length != 0, "empty levels array");
@@ -161,7 +179,8 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
         totalAllocPoint = totalAlloc;
         poolToken.push(_poolToken);
         rewarder.push(_rewarder);
-        nftDescriptor.push(_nftDescriptor);
+        INFTDescriptor descriptor = new NFTDescriptor();
+        nftDescriptor.push(descriptor);
 
         poolInfo.push(
             PoolInfo({ allocPoint: allocPoint, lastRewardTime: block.timestamp, accRewardPerShare: 0, name: name })
@@ -174,7 +193,7 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
             })
         );
 
-        emit LogPoolAddition((poolToken.length - 1), allocPoint, _poolToken, _rewarder, _nftDescriptor);
+        emit LogPoolAddition((poolToken.length - 1), allocPoint, _poolToken, _rewarder, descriptor);
     }
 
     /*
@@ -214,7 +233,6 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
         }
 
         pool.name = name;
-        nftDescriptor[pid] = _nftDescriptor;
 
         emit LogPoolModified(pid, allocPoint, overwriteRewarder ? _rewarder : rewarder[pid], _nftDescriptor);
     }
