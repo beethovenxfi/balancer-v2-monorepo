@@ -57,8 +57,8 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
             _pullToken(sender, token, amount);
         }
 
-        // deposit the tokens to the masterchef
         token.approve(address(_reliquary), amount);
+        // mint a new relic and deposit the tokens
         _reliquary.createRelicAndDeposit(recipient, poolId, amount);
 
         if (_isChainedReference(outputReference)) {
@@ -86,8 +86,8 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
             _pullToken(sender, token, amount);
         }
 
-        // deposit the tokens to the masterchef
         token.approve(address(_reliquary), amount);
+        // deposit the tokens to an existing relic
         _reliquary.deposit(amount, relicId);
 
         if (_isChainedReference(outputReference)) {
@@ -108,7 +108,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         PositionInfo memory position = _reliquary.getPositionForId(relicId);
         IERC20 poolToken = _reliquary.poolToken(position.poolId);
 
-        // withdraw the token from the masterchef, sending it to the recipient
+        // withdraw the token from the relic and harvest base emission and additional rewards
         _reliquary.withdrawAndHarvest(amount, relicId);
         // we transfer the base emission rewards
         uint256 emissionRewards = rewardToken.balanceOf(address(this));
@@ -124,7 +124,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
                 additionalRewardToken.transfer(recipient, additionalRewards);
             }
         }
-        // now we transfer the staked token
+        // now we transfer the pool tokens
         poolToken.transfer(recipient, amount);
 
         if (_isChainedReference(outputReference)) {
