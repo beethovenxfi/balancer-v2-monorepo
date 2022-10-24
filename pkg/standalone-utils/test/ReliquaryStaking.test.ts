@@ -318,6 +318,7 @@ describe('ReliquaryStaking', function () {
         expect(await poolToken.balanceOf(anotherUser.address)).to.equal(withdrawalAmountOtherUser);
         const position = await reliquary.getPositionForId(relicId);
         expect(position.amount).to.equal(depositAmount.sub(withdrawalAmountUser).sub(withdrawalAmountOtherUser));
+        expect(await poolToken.balanceOf(relayer.address)).to.equal(0);
       });
 
       it('withraws reward emissions to recipient', async () => {
@@ -369,6 +370,59 @@ describe('ReliquaryStaking', function () {
         const afterSecondHarvestTimestap = await currentTimestamp();
         const expectedSecondRewards = emissionRate.mul(afterSecondHarvestTimestap.sub(afterFirstHarvestTimestamp));
         expect(await emissionToken.balanceOf(anotherUser.address)).to.equal(expectedSecondRewards);
+        expect(await emissionToken.balanceOf(relayer.address)).to.equal(0);
+      });
+
+      it('withdraws additional rewards to recipient', async () => {
+        const rewardToken = await Token.create('RewardToken');
+        const rewarder = await deploy('MockReliquaryRewarder', {
+          args: [10_000, 0, 10_000_00, 10000000000000, rewardToken.address, reliquary.address],
+        });
+        await rewardToken.mint(rewarder, fp(10_000_000));
+        await reliquary.addPool(
+          100,
+          poolToken.address,
+          rewarder.address,
+          [0, 86400, 172800, 259200],
+          [100, 200, 300, 400],
+          'Test Pool',
+          ZERO_ADDRESS
+        );
+
+        const initialAmount = fp(100);
+        const depositAmount = fp(100);
+        const withdrawalAmountUser = fp(20);
+
+        await poolToken.mint(user.address, initialAmount);
+        await poolToken.approve(reliquary.address, depositAmount, { from: user });
+
+        await reliquary.connect(user).createRelicAndDeposit(user.address, 0, depositAmount);
+
+        const depositTimestamp = await currentTimestamp();
+
+        const relicId = await reliquary.tokenOfOwnerByIndex(user.address, 0);
+
+        // we have to approve the relayer to withdraw funds for this relic
+        await reliquary.connect(user).approve(relayer.address, relicId);
+
+        // now we advance some time to generate rewards, since there is only 1 pool and 1 user, he should get all rewards
+        await advanceTime(100);
+
+        await relayer
+          .connect(user)
+          .multicall([encodeWithdraw(user, relicId, withdrawalAmountUser, toChainedReference(0))]);
+
+        const afterFirstHarvestTimestamp = await currentTimestamp();
+
+        /*  
+         since we give a multiplier of 10_000 and the basis points are also 10_000 
+         we end up with emissionRewards * 10_000 / 10_000 = emissionRewards. So we should have 
+         the same amount of reward token rewards as emission token rewards
+       */
+        const expectedRewards = emissionRate.mul(afterFirstHarvestTimestamp.sub(depositTimestamp));
+        expect(await emissionToken.balanceOf(user.address)).to.equal(expectedRewards);
+        expect(await rewardToken.balanceOf(user.address)).to.equal(expectedRewards);
+        expect(await rewardToken.balanceOf(relayer.address)).to.equal(0);
       });
     });
   });
