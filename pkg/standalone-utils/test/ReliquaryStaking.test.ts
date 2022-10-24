@@ -22,6 +22,7 @@ import {
   MINUTE,
   MONTH,
 } from '@balancer-labs/v2-helpers/src/time';
+import { advanceBlock, setAutomineBlocks } from '@balancer-labs/v2-helpers/src/mine';
 
 describe('ReliquaryStaking', function () {
   let emissionToken: Token, poolToken: Token, otherPoolToken: Token;
@@ -116,6 +117,13 @@ describe('ReliquaryStaking', function () {
       relicId,
       amount,
       outputReference ?? 0,
+    ]);
+  }
+
+  function encodeHarvestAll(owner: Account, recipient: Account): string {
+    return relayerLibrary.interface.encodeFunctionData('reliquaryHarvestAll', [
+      TypesConverter.toAddress(owner),
+      TypesConverter.toAddress(recipient),
     ]);
   }
 
@@ -423,6 +431,96 @@ describe('ReliquaryStaking', function () {
         expect(await emissionToken.balanceOf(user.address)).to.equal(expectedRewards);
         expect(await rewardToken.balanceOf(user.address)).to.equal(expectedRewards);
         expect(await rewardToken.balanceOf(relayer.address)).to.equal(0);
+      });
+
+      it('harvests rewards from all relics from a given user', async () => {
+        const otherPoolToken = await Token.create('Other');
+        const yetAnotherPoolToken = await Token.create('Another');
+        await reliquary.addPool(
+          100,
+          poolToken.address,
+          ZERO_ADDRESS,
+          [0, 86400, 172800, 259200],
+          [100, 200, 300, 400],
+          'Test Pool',
+          ZERO_ADDRESS
+        );
+        await reliquary.addPool(
+          100,
+          otherPoolToken.address,
+          ZERO_ADDRESS,
+          [0, 86400, 172800, 259200],
+          [100, 200, 300, 400],
+          'Another Test Pool',
+          ZERO_ADDRESS
+        );
+
+        const initialAmount = fp(100);
+        const depositAmount = fp(100);
+
+        await poolToken.mint(user.address, initialAmount);
+        await poolToken.approve(reliquary.address, depositAmount, { from: user });
+
+        await otherPoolToken.mint(user.address, initialAmount);
+        await otherPoolToken.approve(reliquary.address, depositAmount, { from: user });
+
+        await poolToken.mint(anotherUser.address, initialAmount);
+        await poolToken.approve(reliquary.address, depositAmount, { from: anotherUser });
+
+        await otherPoolToken.mint(anotherUser.address, initialAmount);
+        await otherPoolToken.approve(reliquary.address, depositAmount, { from: anotherUser });
+
+        /*
+           we deposit into both pools with both users 
+           with the same amount, so both should get half of the rewards
+        */
+        await setAutomineBlocks(false);
+        await reliquary.connect(user).createRelicAndDeposit(user.address, 0, depositAmount);
+        await reliquary.connect(user).createRelicAndDeposit(user.address, 1, depositAmount);
+
+        await reliquary.connect(anotherUser).createRelicAndDeposit(anotherUser.address, 0, depositAmount);
+        await reliquary.connect(anotherUser).createRelicAndDeposit(anotherUser.address, 1, depositAmount);
+        await advanceBlock();
+        await setAutomineBlocks(true);
+
+        const depositTimestamp = await currentTimestamp();
+
+        const userRelicId = await reliquary.tokenOfOwnerByIndex(user.address, 0);
+        const userOtherRelicId = await reliquary.tokenOfOwnerByIndex(user.address, 1);
+
+        const anotherUserRelicId = await reliquary.tokenOfOwnerByIndex(anotherUser.address, 0);
+        const anotherUserOtherRelicId = await reliquary.tokenOfOwnerByIndex(anotherUser.address, 1);
+
+        // we have to approve the relayer to withdraw funds for this relic
+        await reliquary.connect(user).approve(relayer.address, userRelicId);
+        await reliquary.connect(user).approve(relayer.address, userOtherRelicId);
+
+        await reliquary.connect(anotherUser).approve(relayer.address, anotherUserRelicId);
+        await reliquary.connect(anotherUser).approve(relayer.address, anotherUserOtherRelicId);
+
+        // now we advance some time to generate rewards, since there is only 1 pool and 1 user, he should get all rewards
+        await advanceTime(100);
+
+        await setAutomineBlocks(false);
+        await relayer.connect(user).multicall([encodeHarvestAll(user, user)]);
+        await relayer.connect(anotherUser).multicall([encodeHarvestAll(anotherUser, anotherUser)]);
+        await advanceBlock();
+        await setAutomineBlocks(true);
+
+        const afterFirstHarvestTimestamp = await currentTimestamp();
+
+        const timePassed = afterFirstHarvestTimestamp.sub(depositTimestamp);
+
+        /*
+           since all pools have the same allocation and we joined in the same tx
+           we expect the emissions * 3
+        */
+        const rewards = emissionRate.mul(timePassed).div(2);
+        expect(await emissionToken.balanceOf(user.address)).to.equal(rewards);
+        expect(await reliquary.pendingReward(userRelicId)).to.equal(0);
+        expect(await reliquary.pendingReward(userOtherRelicId)).to.equal(0);
+        expect(await reliquary.pendingReward(anotherUserRelicId)).to.equal(0);
+        expect(await reliquary.pendingReward(anotherUserOtherRelicId)).to.equal(0);
       });
     });
   });

@@ -132,14 +132,14 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         }
     }
 
-    function harvestAll(address recipient) external payable {
-        uint256 balance = _reliquary.balanceOf(msg.sender);
+    function reliquaryHarvestAll(address owner, address recipient) external payable {
+        uint256 balance = _reliquary.balanceOf(owner);
         if (balance == 0) {
             return;
         }
         IERC20 rewardToken = _reliquary.rewardToken();
         for (uint256 i = 0; i < balance; i++) {
-            uint256 relicId = _reliquary.tokenOfOwnerByIndex(msg.sender, i);
+            uint256 relicId = _reliquary.tokenOfOwnerByIndex(owner, i);
             PositionInfo memory position = _reliquary.getPositionForId(relicId);
             // we harvest the base emissions
             _reliquary.harvest(relicId);
