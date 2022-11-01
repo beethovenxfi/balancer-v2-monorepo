@@ -58,12 +58,13 @@ abstract contract ProtocolFeeCache is RecoveryMode {
     uint256 private constant _AUM_FEE_OFFSET = _YIELD_FEE_OFFSET + _FEE_TYPE_CACHE_WIDTH;
 
     event ProtocolFeePercentageCacheUpdated(bytes32 feeCache);
+    event ProtocolFeeIdsUpdated(uint256 swap, uint256 yield, uint256 aum);
 
     /**
-     * @dev Protocol fee types can be set at contract creation. Fee IDs store which of the IDs in the protocol fee
-     * provider shall be applied to its respective fee type (swap, yield, aum).
-     * This is because some Pools may have different protocol fee values for the same type of underlying operation:
-     * for example, Stable Pools might have a different swap protocol fee than Weighted Pools.
+     * @dev Protocol fee types can be set at contract creation and updated by governance via setProtocolFeeIds. Fee IDs
+     * store which of the IDs in the protocol fee provider shall be applied to its respective fee type
+     * (swap, yield, aum). This is because some Pools may have different protocol fee values for the same type of
+     * underlying operation: for example, Stable Pools might have a different swap protocol fee than Weighted Pools.
      * This module does not check at all that the chosen fee types have any sort of relation with the operation they're
      * assigned to: it is possible to e.g. set a Pool's swap protocol fee to equal the flash loan protocol fee.
      */
@@ -74,7 +75,7 @@ abstract contract ProtocolFeeCache is RecoveryMode {
     }
 
     IProtocolFeePercentagesProvider private immutable _protocolFeeProvider;
-    bytes32 private immutable _feeIds;
+    bytes32 private _feeIds;
 
     bytes32 private _feeCache;
 
@@ -88,6 +89,29 @@ abstract contract ProtocolFeeCache is RecoveryMode {
         _feeIds = feeIds;
 
         _updateProtocolFeeCache(protocolFeeProvider, feeIds);
+    }
+
+    /**
+     * @notice Sets the protocol fee ids specifically for this pool.
+     * @dev This allows for pool level granularity of feeIds, enabling usecases like gauge fee tiers.
+     * This action should be under the control of governance
+     */
+    function setProtocolFeeIds(ProviderFeeIDs memory providerFeeIDs) external authenticate {
+        require(_protocolFeeProvider.isValidFeeType(providerFeeIDs.swap), "Invalid swap fee type");
+        require(_protocolFeeProvider.isValidFeeType(providerFeeIDs.yield), "Invalid yield fee type");
+        require(_protocolFeeProvider.isValidFeeType(providerFeeIDs.aum), "Invalid aum fee type");
+
+        _beforeProtocolFeeCacheUpdate();
+
+        bytes32 feeIds = WordCodec.encodeUint(providerFeeIDs.swap, _SWAP_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH) |
+            WordCodec.encodeUint(providerFeeIDs.yield, _YIELD_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH) |
+            WordCodec.encodeUint(providerFeeIDs.aum, _AUM_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH);
+
+        _feeIds = feeIds;
+
+        _updateProtocolFeeCache(_protocolFeeProvider, _feeIds);
+
+        emit ProtocolFeeIdsUpdated(providerFeeIDs.swap, providerFeeIDs.yield, providerFeeIDs.aum);
     }
 
     /**

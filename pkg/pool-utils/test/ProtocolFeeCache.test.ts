@@ -19,10 +19,11 @@ type ProviderFeeIDs = {
 describe('ProtocolFeeCache', () => {
   let protocolFeeCache: Contract;
   let admin: SignerWithAddress;
+  let other: SignerWithAddress;
   let vault: Vault;
 
   before('setup signers', async () => {
-    [, admin] = await ethers.getSigners();
+    [other, admin] = await ethers.getSigners();
   });
 
   sharedBeforeEach('deploy vault', async () => {
@@ -75,7 +76,11 @@ describe('ProtocolFeeCache', () => {
     it('reverts during deployment', async () => {
       await expect(
         deploy('MockProtocolFeeCache', {
-          args: [vault.protocolFeesProvider.address, { swap: 137, yield: ProtocolFee.SWAP, aum: ProtocolFee.YIELD }],
+          args: [
+            vault.protocolFeesProvider.address,
+            { swap: 137, yield: ProtocolFee.SWAP, aum: ProtocolFee.YIELD },
+            vault.authorizer.address,
+          ],
           from: admin,
         })
       ).to.be.revertedWith('Non-existent fee type');
@@ -85,9 +90,14 @@ describe('ProtocolFeeCache', () => {
   function itTestsProtocolFeePercentages(providerFeeIds: ProviderFeeIDs): void {
     sharedBeforeEach('deploy fee cache', async () => {
       protocolFeeCache = await deploy('MockProtocolFeeCache', {
-        args: [vault.protocolFeesProvider.address, providerFeeIds],
+        args: [vault.protocolFeesProvider.address, providerFeeIds, vault.authorizer.address],
         from: admin,
       });
+
+      //give the admin permission to setProtocolFeeIds
+      await vault.authorizer
+        .connect(admin)
+        .grantPermissions([actionId(protocolFeeCache, 'setProtocolFeeIds')], admin.address, [protocolFeeCache.address]);
     });
 
     it('reverts when querying unknown protocol fees', async () => {
@@ -188,6 +198,46 @@ describe('ProtocolFeeCache', () => {
             })
         );
       });
+    });
+
+    it('can update the protocol fee ids', async () => {
+      await protocolFeeCache.connect(admin).setProtocolFeeIds({
+        swap: providerFeeIds.yield,
+        yield: providerFeeIds.swap,
+        aum: providerFeeIds.aum,
+      });
+
+      expect(await protocolFeeCache.getProviderFeeId(ProtocolFee.SWAP)).to.be.eq(providerFeeIds.yield);
+      expect(await protocolFeeCache.getProviderFeeId(ProtocolFee.YIELD)).to.be.eq(providerFeeIds.swap);
+      expect(await protocolFeeCache.getProviderFeeId(ProtocolFee.AUM)).to.be.eq(providerFeeIds.aum);
+    });
+
+    it('reverts when setting protocol fee ids to an invalid value', async () => {
+      await expect(
+        protocolFeeCache
+          .connect(admin)
+          .setProtocolFeeIds({ swap: 9999, yield: providerFeeIds.yield, aum: providerFeeIds.aum })
+      ).to.be.revertedWith('Invalid swap fee type');
+
+      await expect(
+        protocolFeeCache
+          .connect(admin)
+          .setProtocolFeeIds({ swap: providerFeeIds.swap, yield: 9999, aum: providerFeeIds.aum })
+      ).to.be.revertedWith('Invalid yield fee type');
+
+      await expect(
+        protocolFeeCache
+          .connect(admin)
+          .setProtocolFeeIds({ swap: providerFeeIds.swap, yield: providerFeeIds.yield, aum: 9999 })
+      ).to.be.revertedWith('Invalid aum fee type');
+    });
+
+    it('reverts when trying to set protocol fee ids from an unauthorized account', async () => {
+      await expect(
+        protocolFeeCache
+          .connect(other)
+          .setProtocolFeeIds({ swap: providerFeeIds.swap, yield: providerFeeIds.yield, aum: providerFeeIds.aum })
+      ).to.be.revertedWith('SENDER_NOT_ALLOWED');
     });
   }
 });

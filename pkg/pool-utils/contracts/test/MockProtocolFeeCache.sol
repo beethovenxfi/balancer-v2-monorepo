@@ -19,14 +19,19 @@ import "../external-fees/ProtocolFeeCache.sol";
 import "./MockRecoveryModeStorage.sol";
 
 contract MockProtocolFeeCache is ProtocolFeeCache, MockRecoveryModeStorage {
+    IAuthorizer private immutable _authorizer;
     // We make the caller the owner and make all functions owner only, letting the deployer perform all permissioned
     // actions.
-    constructor(IProtocolFeePercentagesProvider protocolFeeProvider, ProviderFeeIDs memory providerFeeIDs)
+    constructor(
+        IProtocolFeePercentagesProvider protocolFeeProvider,
+        ProviderFeeIDs memory providerFeeIDs,
+        IAuthorizer authorizer
+    )
         Authentication(bytes32(uint256(address(this))))
         BasePoolAuthorization(msg.sender)
         ProtocolFeeCache(protocolFeeProvider, providerFeeIDs)
     {
-        // solhint-disable-previous-line no-empty-blocks
+        _authorizer = authorizer;
     }
 
     event FeesInBeforeHook(uint256 swap, uint256 yield, uint256 aum);
@@ -43,8 +48,8 @@ contract MockProtocolFeeCache is ProtocolFeeCache, MockRecoveryModeStorage {
         return true;
     }
 
-    function _getAuthorizer() internal pure override returns (IAuthorizer) {
-        return IAuthorizer(address(0));
+    function _getAuthorizer() internal view override returns (IAuthorizer) {
+        return _authorizer;
     }
 
     function _doRecoveryModeExit(
