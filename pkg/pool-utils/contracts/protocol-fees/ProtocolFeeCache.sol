@@ -13,10 +13,12 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 pragma solidity ^0.7.0;
+pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/helpers/BalancerErrors.sol";
 import "@balancer-labs/v2-interfaces/contracts/standalone-utils/IProtocolFeePercentagesProvider.sol";
 
+import "@balancer-labs/v2-solidity-utils/contracts/helpers/WordCodec.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/SafeCast.sol";
 
 import "../RecoveryMode.sol";
@@ -30,102 +32,137 @@ import "../RecoveryMode.sol";
  * However, these values change so rarely that it doesn't make sense to perform the required calls to get the current
  * values in every single user interaction. Instead, we keep a local copy that can be permissionlessly updated by anyone
  * with the real value. We also pack these values together, performing a single storage read to get them all.
- *
- * When initialized with a special sentinel value, the swap fee is delegated, meaning the mutable protocol swap fee
- * cache is set to the current value stored in the ProtocolFeePercentagesProvider, and can be updated by anyone with a
- * call to `updateProtocolFeePercentageCache`. Any other value means the protocol swap fee is fixed, so it is instead
- * stored in the immutable `_fixedProtocolSwapFeePercentage`.
  */
 abstract contract ProtocolFeeCache is RecoveryMode {
     using SafeCast for uint256;
+    using WordCodec for bytes32;
 
-    IProtocolFeePercentagesProvider private immutable _protocolFeeProvider;
+    // Protocol Fee IDs represent fee types; we are supporting 3 types (join, yield and aum), so 8 bits is enough to
+    // store each of them.
+    // [ 232 bits |   8 bits   |    8 bits    |    8 bits   ]
+    // [  unused  | AUM fee ID | Yield fee ID | Swap fee ID ]
+    // [MSB                                              LSB]
+    uint256 private constant _FEE_TYPE_ID_WIDTH = 8;
+    uint256 private constant _SWAP_FEE_ID_OFFSET = 0;
+    uint256 private constant _YIELD_FEE_ID_OFFSET = _SWAP_FEE_ID_OFFSET + _FEE_TYPE_ID_WIDTH;
+    uint256 private constant _AUM_FEE_ID_OFFSET = _YIELD_FEE_ID_OFFSET + _FEE_TYPE_ID_WIDTH;
 
     // Protocol Fee Percentages can never be larger than 100% (1e18), which fits in ~59 bits, so using 64 for each type
     // is sufficient.
-    struct FeeTypeCache {
-        uint64 swapFee;
-        uint64 yieldFee;
-        uint64 aumFee;
+    // [  64 bits |    64 bits    |     64 bits     |     64 bits    ]
+    // [  unused  | AUM fee cache | Yield fee cache | Swap fee cache ]
+    // [MSB                                                       LSB]
+    uint256 private constant _FEE_TYPE_CACHE_WIDTH = 64;
+    uint256 private constant _SWAP_FEE_OFFSET = 0;
+    uint256 private constant _YIELD_FEE_OFFSET = _SWAP_FEE_OFFSET + _FEE_TYPE_CACHE_WIDTH;
+    uint256 private constant _AUM_FEE_OFFSET = _YIELD_FEE_OFFSET + _FEE_TYPE_CACHE_WIDTH;
+
+    event ProtocolFeePercentageCacheUpdated(bytes32 feeCache);
+    event ProtocolFeeIdsUpdated(uint256 swap, uint256 yield, uint256 aum);
+
+    /**
+     * @dev Protocol fee types can be set at contract creation and updated by governance via setProtocolFeeIds. Fee IDs
+     * store which of the IDs in the protocol fee provider shall be applied to its respective fee type
+     * (swap, yield, aum). This is because some Pools may have different protocol fee values for the same type of
+     * underlying operation: for example, Stable Pools might have a different swap protocol fee than Weighted Pools.
+     * This module does not check at all that the chosen fee types have any sort of relation with the operation they're
+     * assigned to: it is possible to e.g. set a Pool's swap protocol fee to equal the flash loan protocol fee.
+     */
+    struct ProviderFeeIDs {
+        uint256 swap;
+        uint256 yield;
+        uint256 aum;
     }
 
-    FeeTypeCache private _cache;
+    IProtocolFeePercentagesProvider private immutable _protocolFeeProvider;
+    bytes32 private _feeIds;
 
-    event ProtocolFeePercentageCacheUpdated(uint256 indexed feeType, uint256 protocolFeePercentage);
+    bytes32 private _feeCache;
 
-    // Swap fees can be set to a fixed value at construction, or delegated to the ProtocolFeePercentagesProvider if
-    // passing the special sentinel value.
-    uint256 public constant DELEGATE_PROTOCOL_SWAP_FEES_SENTINEL = type(uint256).max;
-
-    bool private immutable _delegatedProtocolSwapFees;
-
-    // Only valid when `_delegatedProtocolSwapFees` is false
-    uint256 private immutable _fixedProtocolSwapFeePercentage;
-
-    constructor(IProtocolFeePercentagesProvider protocolFeeProvider, uint256 protocolSwapFeePercentage) {
-        // Protocol swap fees are delegated to the value reported by the ProtocolFeePercentagesProvider if the sentinel
-        // value is passed.
-        bool delegatedProtocolSwapFees = protocolSwapFeePercentage == DELEGATE_PROTOCOL_SWAP_FEES_SENTINEL;
-
-        _delegatedProtocolSwapFees = delegatedProtocolSwapFees;
+    constructor(IProtocolFeePercentagesProvider protocolFeeProvider, ProviderFeeIDs memory providerFeeIDs) {
         _protocolFeeProvider = protocolFeeProvider;
 
-        _updateProtocolFeeCache(protocolFeeProvider, ProtocolFeeType.YIELD);
-        _updateProtocolFeeCache(protocolFeeProvider, ProtocolFeeType.AUM);
+        bytes32 feeIds = WordCodec.encodeUint(providerFeeIDs.swap, _SWAP_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH) |
+            WordCodec.encodeUint(providerFeeIDs.yield, _YIELD_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH) |
+            WordCodec.encodeUint(providerFeeIDs.aum, _AUM_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH);
 
-        if (delegatedProtocolSwapFees) {
-            _updateProtocolFeeCache(protocolFeeProvider, ProtocolFeeType.SWAP);
-        } else {
-            _require(
-                protocolSwapFeePercentage <= protocolFeeProvider.getFeeTypeMaximumPercentage(ProtocolFeeType.SWAP),
-                Errors.SWAP_FEE_PERCENTAGE_TOO_HIGH
-            );
+        _feeIds = feeIds;
 
-            // We cannot set `_fixedProtocolSwapFeePercentage` here due to it being immutable so instead we must set it
-            // in the main function scope with a value based on whether protocol fees are delegated.
-
-            // Emit an event as we do in `_updateProtocolFeeCache` to appear the same to offchain indexers.
-            emit ProtocolFeePercentageCacheUpdated(ProtocolFeeType.SWAP, protocolSwapFeePercentage);
-        }
-
-        // As `_fixedProtocolSwapFeePercentage` is immutable we must set a value, but just set to zero if it's not used.
-        _fixedProtocolSwapFeePercentage = delegatedProtocolSwapFees ? 0 : protocolSwapFeePercentage;
+        _updateProtocolFeeCache(protocolFeeProvider, feeIds);
     }
 
     /**
-     * @dev Returns the cached protocol fee percentage. If `getProtocolSwapFeeDelegation()` is false, this value is
-     * immutable for swap fee queries. Alternatively, it will track the global fee percentage set in the
-     * ProtocolFeePercentagesProvider.
+     * @notice Sets the protocol fee ids specifically for this pool.
+     * @dev This allows for pool level granularity of feeIds, enabling usecases like gauge fee tiers.
+     * This action should be under the control of governance
+     */
+    function setProtocolFeeIds(ProviderFeeIDs memory providerFeeIDs) external authenticate {
+        require(_protocolFeeProvider.isValidFeeType(providerFeeIDs.swap), "Invalid swap fee type");
+        require(_protocolFeeProvider.isValidFeeType(providerFeeIDs.yield), "Invalid yield fee type");
+        require(_protocolFeeProvider.isValidFeeType(providerFeeIDs.aum), "Invalid aum fee type");
+
+        _beforeProtocolFeeCacheUpdate();
+
+        bytes32 feeIds = WordCodec.encodeUint(providerFeeIDs.swap, _SWAP_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH) |
+            WordCodec.encodeUint(providerFeeIDs.yield, _YIELD_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH) |
+            WordCodec.encodeUint(providerFeeIDs.aum, _AUM_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH);
+
+        _feeIds = feeIds;
+
+        _updateProtocolFeeCache(_protocolFeeProvider, _feeIds);
+
+        emit ProtocolFeeIdsUpdated(providerFeeIDs.swap, providerFeeIDs.yield, providerFeeIDs.aum);
+    }
+
+    /**
+     * @notice Returns the cached protocol fee percentage.
      */
     function getProtocolFeePercentageCache(uint256 feeType) public view returns (uint256) {
         if (inRecoveryMode()) {
             return 0;
         }
 
+        uint256 offset;
         if (feeType == ProtocolFeeType.SWAP) {
-            return getProtocolSwapFeeDelegation() ? _cache.swapFee : _fixedProtocolSwapFeePercentage;
+            offset = _SWAP_FEE_OFFSET;
         } else if (feeType == ProtocolFeeType.YIELD) {
-            return _cache.yieldFee;
+            offset = _YIELD_FEE_OFFSET;
         } else if (feeType == ProtocolFeeType.AUM) {
-            return _cache.aumFee;
+            offset = _AUM_FEE_OFFSET;
         } else {
             _revert(Errors.UNHANDLED_FEE_TYPE);
         }
+
+        return _feeCache.decodeUint(offset, _FEE_TYPE_CACHE_WIDTH);
     }
 
     /**
-     * @dev Can be called by anyone to update the cached fee percentages (swap fee is only updated when delegated).
-     * Updates the cache to the latest value set by governance.
+     * @notice Returns the provider fee ID for the given fee type.
+     */
+    function getProviderFeeId(uint256 feeType) public view returns (uint256) {
+        uint256 offset;
+
+        if (feeType == ProtocolFeeType.SWAP) {
+            offset = _SWAP_FEE_ID_OFFSET;
+        } else if (feeType == ProtocolFeeType.YIELD) {
+            offset = _YIELD_FEE_ID_OFFSET;
+        } else if (feeType == ProtocolFeeType.AUM) {
+            offset = _AUM_FEE_ID_OFFSET;
+        } else {
+            _revert(Errors.UNHANDLED_FEE_TYPE);
+        }
+
+        return _feeIds.decodeUint(offset, _FEE_TYPE_ID_WIDTH);
+    }
+
+    /**
+     * @notice Updates the cache to the latest value set by governance.
+     * @dev Can be called by anyone to update the cached fee percentages.
      */
     function updateProtocolFeePercentageCache() external {
         _beforeProtocolFeeCacheUpdate();
 
-        if (getProtocolSwapFeeDelegation()) {
-            _updateProtocolFeeCache(_protocolFeeProvider, ProtocolFeeType.SWAP);
-        }
-
-        _updateProtocolFeeCache(_protocolFeeProvider, ProtocolFeeType.YIELD);
-        _updateProtocolFeeCache(_protocolFeeProvider, ProtocolFeeType.AUM);
+        _updateProtocolFeeCache(_protocolFeeProvider, _feeIds);
     }
 
     /**
@@ -133,28 +170,27 @@ abstract contract ProtocolFeeCache is RecoveryMode {
      * to Pools that incur protocol debt between operations. To avoid altering the amount due retroactively, this debt
      * needs to be paid before the fee percentages change.
      */
-    function _beforeProtocolFeeCacheUpdate() internal virtual {}
-
-    /**
-     * @dev Returns whether this Pool tracks protocol swap fee changes in the IProtocolFeePercentagesProvider.
-     */
-    function getProtocolSwapFeeDelegation() public view returns (bool) {
-        return _delegatedProtocolSwapFees;
+    function _beforeProtocolFeeCacheUpdate() internal virtual {
+        // solhint-disable-previous-line no-empty-blocks
     }
 
-    function _updateProtocolFeeCache(IProtocolFeePercentagesProvider protocolFeeProvider, uint256 feeType) private {
-        uint256 currentValue = protocolFeeProvider.getFeeTypePercentage(feeType);
+    function _updateProtocolFeeCache(IProtocolFeePercentagesProvider protocolFeeProvider, bytes32 feeIds) private {
+        uint256 swapFee = protocolFeeProvider.getFeeTypePercentage(
+            feeIds.decodeUint(_SWAP_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH)
+        );
+        uint256 yieldFee = protocolFeeProvider.getFeeTypePercentage(
+            feeIds.decodeUint(_YIELD_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH)
+        );
+        uint256 aumFee = protocolFeeProvider.getFeeTypePercentage(
+            feeIds.decodeUint(_AUM_FEE_ID_OFFSET, _FEE_TYPE_ID_WIDTH)
+        );
 
-        if (feeType == ProtocolFeeType.SWAP) {
-            _cache.swapFee = currentValue.toUint64();
-        } else if (feeType == ProtocolFeeType.YIELD) {
-            _cache.yieldFee = currentValue.toUint64();
-        } else if (feeType == ProtocolFeeType.AUM) {
-            _cache.aumFee = currentValue.toUint64();
-        } else {
-            _revert(Errors.UNHANDLED_FEE_TYPE);
-        }
+        bytes32 feeCache = WordCodec.encodeUint(swapFee, _SWAP_FEE_OFFSET, _FEE_TYPE_CACHE_WIDTH) |
+            WordCodec.encodeUint(yieldFee, _YIELD_FEE_OFFSET, _FEE_TYPE_CACHE_WIDTH) |
+            WordCodec.encodeUint(aumFee, _AUM_FEE_OFFSET, _FEE_TYPE_CACHE_WIDTH);
 
-        emit ProtocolFeePercentageCacheUpdated(feeType, currentValue);
+        _feeCache = feeCache;
+
+        emit ProtocolFeePercentageCacheUpdated(feeCache);
     }
 }

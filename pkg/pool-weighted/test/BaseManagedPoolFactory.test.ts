@@ -197,17 +197,5 @@ describe('BaseManagedPoolFactory', function () {
 
       expect(await pool.getMustAllowlistLPs()).to.be.false;
     });
-
-    it('pool with delegated protocol fees', async () => {
-      const pool = await createPool(true, false);
-
-      expect(await pool.getProtocolSwapFeeDelegation()).to.be.true;
-    });
-
-    it('pool created with a fixed protocol fee', async () => {
-      const pool = await createPool(true, false, fp(0.1));
-
-      expect(await pool.getProtocolSwapFeeDelegation()).to.be.false;
-    });
   });
 });
