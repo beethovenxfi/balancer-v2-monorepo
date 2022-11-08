@@ -15,13 +15,13 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "@balancer-labs/v2-interfaces/contracts/pool-linear/IReaperTokenVault.sol";
+import "@balancer-labs/v2-interfaces/contracts/solidity-utils/misc/IERC4626.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-utils/ILastCreatedPoolFactory.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
 import "../LinearPoolRebalancer.sol";
 
-contract ReaperLinearPoolRebalancer is LinearPoolRebalancer {
+contract ERC4626LinearPoolRebalancer is LinearPoolRebalancer {
     using Math for uint256;
 
     // These Rebalancers can only be deployed from a factory to work around a circular dependency: the Pool must know
@@ -29,29 +29,28 @@ contract ReaperLinearPoolRebalancer is LinearPoolRebalancer {
     // during construction.
     constructor(IVault vault, IBalancerQueries queries)
         LinearPoolRebalancer(ILinearPool(ILastCreatedPoolFactory(msg.sender).getLastCreatedPool()), vault, queries)
-    {
+    { 
         // solhint-disable-previous-line no-empty-blocks
     }
 
     function _wrapTokens(uint256 amount) internal override {
-        // Depositing from underlying (i.e. DAI, USDC, etc. instead of rfDAI or rfUSDC). Before we can
-        // deposit however, we need to approve the wrapper (reaper vault) in the underlying token.
+        // Depositing from underlying (i.e. DAI, USDC, etc. instead of vault tokens). Before we can
+        // deposit however, we need to approve the wrapper (ERC4626 vault) in the underlying token.
         _mainToken.approve(address(_wrappedToken), amount);
-        IReaperTokenVault(address(_wrappedToken)).deposit(amount);
+        IERC4626(address(_wrappedToken)).deposit(amount, address(this));
     }
 
     function _unwrapTokens(uint256 amount) internal override {
-        // Withdrawing into underlying (i.e. DAI, USDC, etc. instead of rfDAI or rfUSDC). Approvals are not necessary
+        // Withdrawing into underlying (i.e. DAI, USDC, etc. instead of vault tokens). Approvals are not necessary
         // here as the wrapped token is simply burnt.
-        IReaperTokenVault(address(_wrappedToken)).withdraw(amount);
+        IERC4626(address(_wrappedToken)).redeem(amount, address(this), address(this));
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
-        IReaperTokenVault tokenVault = IReaperTokenVault(address(_wrappedToken));
-
-        // We round up to ensure the returned value will always be enough to get `wrappedAmount` when unwrapping.
-        // This might result in some dust being left in the Rebalancer.
-        // wrappedAmount * vaultBalance / vaultTotalSupply
-        return wrappedAmount.mul(tokenVault.balance()).divUp(tokenVault.totalSupply());
+        // convertToAssets returns how many main tokens will be returned when unwrapping. Since there's fixed point
+        // divisions and multiplications with rounding involved, this value might be off by one. We add one to ensure
+        // the returned value will always be enough to get `wrappedAmount` when unwrapping. This might result in some
+        // dust being left in the Rebalancer.
+        return IERC4626(address(_wrappedToken)).convertToAssets(wrappedAmount) + 1;
     }
 }
