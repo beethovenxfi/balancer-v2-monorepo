@@ -40,17 +40,17 @@ contract ERC4626LinearPoolRebalancer is LinearPoolRebalancer {
         IERC4626(address(_wrappedToken)).deposit(amount, address(this));
     }
 
-    function _unwrapTokens(uint256 amount) internal override {
+    function _unwrapTokens(uint256 wrappedAmount) internal override {
         // Withdrawing into underlying (i.e. DAI, USDC, etc. instead of vault tokens). Approvals are not necessary
         // here as the wrapped token is simply burnt.
-        IERC4626(address(_wrappedToken)).redeem(amount, address(this), address(this));
+        IERC4626(address(_wrappedToken)).redeem(wrappedAmount, address(this), address(this));
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
-        // convertToAssets returns how many main tokens will be returned when unwrapping. Since there's fixed point
-        // divisions and multiplications with rounding involved, this value might be off by one. We add one to ensure
-        // the returned value will always be enough to get `wrappedAmount` when unwrapping. This might result in some
-        // dust being left in the Rebalancer.
-        return IERC4626(address(_wrappedToken)).convertToAssets(wrappedAmount) + 1;
+        // ERC4626 defines that previewMint MUST return as close to and no fewer than the exact amount of assets
+        // (main tokens) that would be deposited to mint the desired number of shares (wrapped tokens).
+        // Since the amount returned by previewMint may be slightly larger then the required number of main tokens,
+        // this could result in some dust being left in the Rebalancer.
+        return IERC4626(address(_wrappedToken)).previewMint(wrappedAmount);
     }
 }
