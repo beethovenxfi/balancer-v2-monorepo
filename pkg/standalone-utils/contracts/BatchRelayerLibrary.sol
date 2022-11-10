@@ -24,6 +24,7 @@ import "./relayer/LidoWrapping.sol";
 import "./relayer/UnbuttonWrapping.sol";
 import "./relayer/YearnWrapping.sol";
 import "./relayer/ReaperWrapping.sol";
+import "./relayer/CTokenWrapping.sol";
 import "./relayer/VaultActions.sol";
 import "./relayer/VaultPermit.sol";
 
@@ -41,6 +42,7 @@ contract BatchRelayerLibrary is
     UnbuttonWrapping,
     YearnWrapping,
     ReaperWrapping,
+    CTokenWrapping,
     VaultActions,
     VaultPermit
 {
