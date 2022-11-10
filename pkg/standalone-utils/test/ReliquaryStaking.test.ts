@@ -1,28 +1,21 @@
-import { expect } from 'chai';
-import { ethers } from 'hardhat';
-import { BigNumber, Contract } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
+import { expect } from 'chai';
+import { Contract } from 'ethers';
+import { ethers } from 'hardhat';
 
-import Token from '@balancer-labs/v2-helpers/src/models/tokens/Token';
-import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
-import { deploy, deployedAt } from '@balancer-labs/v2-helpers/src/contract';
-import { actionId } from '@balancer-labs/v2-helpers/src/models/misc/actions';
+import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import { ANY_ADDRESS, ZERO_ADDRESS } from '@balancer-labs/v2-helpers/src/constants';
-import { BigNumberish, bn, fp } from '@balancer-labs/v2-helpers/src/numbers';
-import Vault from '@balancer-labs/v2-helpers/src/models/vault/Vault';
+import { deploy, deployedAt } from '@balancer-labs/v2-helpers/src/contract';
+import { advanceBlock, setAutomineBlocks } from '@balancer-labs/v2-helpers/src/mine';
+import { actionId } from '@balancer-labs/v2-helpers/src/models/misc/actions';
+import Token from '@balancer-labs/v2-helpers/src/models/tokens/Token';
 import { Account } from '@balancer-labs/v2-helpers/src/models/types/types';
 import TypesConverter from '@balancer-labs/v2-helpers/src/models/types/TypesConverter';
-import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
+import Vault from '@balancer-labs/v2-helpers/src/models/vault/Vault';
+import { BigNumberish, bn, fp } from '@balancer-labs/v2-helpers/src/numbers';
+import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
+import { advanceTime, currentTimestamp } from '@balancer-labs/v2-helpers/src/time';
 import { toChainedReference } from './helpers/chainedReferences';
-import {
-  advanceTime,
-  advanceToTimestamp,
-  currentTimestamp,
-  DAY,
-  MINUTE,
-  MONTH,
-} from '@balancer-labs/v2-helpers/src/time';
-import { advanceBlock, setAutomineBlocks } from '@balancer-labs/v2-helpers/src/mine';
 
 describe('ReliquaryStaking', function () {
   let emissionToken: Token, poolToken: Token, otherPoolToken: Token;
@@ -120,9 +113,9 @@ describe('ReliquaryStaking', function () {
     ]);
   }
 
-  function encodeHarvestAll(owner: Account, recipient: Account): string {
+  function encodeHarvestAll(relicIds: number[], recipient: Account): string {
     return relayerLibrary.interface.encodeFunctionData('reliquaryHarvestAll', [
-      TypesConverter.toAddress(owner),
+      relicIds,
       TypesConverter.toAddress(recipient),
     ]);
   }
@@ -328,7 +321,6 @@ describe('ReliquaryStaking', function () {
         expect(position.amount).to.equal(depositAmount.sub(withdrawalAmountUser).sub(withdrawalAmountOtherUser));
         expect(await poolToken.balanceOf(relayer.address)).to.equal(0);
       });
-
       it('withraws reward emissions to recipient', async () => {
         await reliquary.addPool(
           100,
@@ -384,7 +376,7 @@ describe('ReliquaryStaking', function () {
       it('withdraws additional rewards to recipient', async () => {
         const rewardToken = await Token.create('RewardToken');
         const rewarder = await deploy('MockReliquaryRewarder', {
-          args: [10_000, 0, 10_000_00, 10000000000000, rewardToken.address, reliquary.address],
+          args: [10_000, rewardToken.address, reliquary.address],
         });
         await rewardToken.mint(rewarder, fp(10_000_000));
         await reliquary.addPool(
@@ -433,9 +425,70 @@ describe('ReliquaryStaking', function () {
         expect(await rewardToken.balanceOf(relayer.address)).to.equal(0);
       });
 
+      it('reverts withdraw if relic is not owned by user', async () => {
+        await reliquary.addPool(
+          100,
+          poolToken.address,
+          ZERO_ADDRESS,
+          [0, 86400, 172800, 259200],
+          [100, 200, 300, 400],
+          'Test Pool',
+          ZERO_ADDRESS
+        );
+
+        const initialAmount = fp(100);
+        const depositAmount = fp(100);
+        const withdrawalAmount = fp(20);
+
+        await poolToken.mint(user.address, initialAmount);
+        await poolToken.approve(reliquary.address, depositAmount, { from: user });
+
+        await reliquary.connect(user).createRelicAndDeposit(user.address, 0, depositAmount);
+        const relicId = await reliquary.tokenOfOwnerByIndex(user.address, 0);
+        await expect(
+          relayer
+            .connect(anotherUser)
+            .multicall([encodeWithdraw(anotherUser, relicId, withdrawalAmount, toChainedReference(0))])
+        ).to.be.revertedWith('Sender not owner of relic');
+      });
+
+      it('reverts harvest when a relic is not owned by the user', async () => {
+        await reliquary.addPool(
+          100,
+          poolToken.address,
+          ZERO_ADDRESS,
+          [0, 86400, 172800, 259200],
+          [100, 200, 300, 400],
+          'Test Pool',
+          ZERO_ADDRESS
+        );
+
+        const initialAmount = fp(100);
+        const depositAmount = fp(100);
+
+        await poolToken.mint(user.address, initialAmount);
+        await poolToken.approve(reliquary.address, depositAmount, { from: user });
+
+        await poolToken.mint(anotherUser.address, initialAmount);
+        await poolToken.approve(reliquary.address, depositAmount, { from: anotherUser });
+
+        /*
+           we deposit into both pools with both users 
+           with the same amount, so both should get half of the rewards
+        */
+        await reliquary.connect(user).createRelicAndDeposit(user.address, 0, depositAmount);
+        await reliquary.connect(anotherUser).createRelicAndDeposit(anotherUser.address, 0, depositAmount);
+
+        const userRelicId = await reliquary.tokenOfOwnerByIndex(user.address, 0);
+        const anotherUserRelicId = await reliquary.tokenOfOwnerByIndex(anotherUser.address, 0);
+
+        await expect(
+          relayer.connect(anotherUser).multicall([encodeHarvestAll([userRelicId, anotherUserRelicId], anotherUser)])
+        ).to.be.revertedWith('Sender not owner of relic');
+      });
       it('harvests rewards from all relics from a given user', async () => {
         const otherPoolToken = await Token.create('Other');
-        const yetAnotherPoolToken = await Token.create('Another');
+
         await reliquary.addPool(
           100,
           poolToken.address,
@@ -502,8 +555,10 @@ describe('ReliquaryStaking', function () {
         await advanceTime(100);
 
         await setAutomineBlocks(false);
-        await relayer.connect(user).multicall([encodeHarvestAll(user, user)]);
-        await relayer.connect(anotherUser).multicall([encodeHarvestAll(anotherUser, anotherUser)]);
+        await relayer.connect(user).multicall([encodeHarvestAll([userRelicId, userOtherRelicId], user)]);
+        await relayer
+          .connect(anotherUser)
+          .multicall([encodeHarvestAll([anotherUserRelicId, anotherUserOtherRelicId], anotherUser)]);
         await advanceBlock();
         await setAutomineBlocks(true);
 

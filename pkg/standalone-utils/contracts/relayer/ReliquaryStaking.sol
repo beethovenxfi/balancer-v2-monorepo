@@ -104,27 +104,12 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         if (_isChainedReference(amount)) {
             amount = _getChainedReferenceValue(amount);
         }
-        IERC20 rewardToken = _reliquary.rewardToken();
+
+        require(msg.sender == _reliquary.ownerOf(relicId), "Sender not owner of relic");
         PositionInfo memory position = _reliquary.getPositionForId(relicId);
         IERC20 poolToken = _reliquary.poolToken(position.poolId);
 
-        // withdraw the token from the relic and harvest base emission and additional rewards
-        _reliquary.withdrawAndHarvest(amount, relicId);
-        // we transfer the base emission rewards
-        uint256 emissionRewards = rewardToken.balanceOf(address(this));
-        if (emissionRewards > 0) {
-            rewardToken.transfer(recipient, emissionRewards);
-        }
-        // now we have to check if we got additional rewards
-        IRewarder rewarder = _reliquary.rewarder(position.poolId);
-        if (address(rewarder) != address(0)) {
-            IERC20 additionalRewardToken = rewarder.rewardToken();
-            uint256 additionalRewards = additionalRewardToken.balanceOf(address(this));
-            if (additionalRewards > 0) {
-                additionalRewardToken.transfer(recipient, additionalRewards);
-            }
-        }
-        // now we transfer the pool tokens
+        _reliquary.withdrawAndHarvest(amount, relicId, recipient);
         poolToken.transfer(recipient, amount);
 
         if (_isChainedReference(outputReference)) {
@@ -132,25 +117,10 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         }
     }
 
-    function reliquaryHarvestAll(address owner, address recipient) external payable {
-        uint256 balance = _reliquary.balanceOf(owner);
-        if (balance == 0) {
-            return;
+    function reliquaryHarvestAll(uint256[] memory relicIds, address recipient) external payable {
+        for (uint256 i = 0; i < relicIds.length; i++) {
+            require(msg.sender == _reliquary.ownerOf(relicIds[i]), "Sender not owner of relic");
+            _reliquary.harvest(relicIds[i], recipient);
         }
-        IERC20 rewardToken = _reliquary.rewardToken();
-        for (uint256 i = 0; i < balance; i++) {
-            uint256 relicId = _reliquary.tokenOfOwnerByIndex(owner, i);
-            PositionInfo memory position = _reliquary.getPositionForId(relicId);
-            // we harvest the base emissions
-            _reliquary.harvest(relicId);
-            // now we have to check if we got additional rewards
-            // since each rewarder can have a different reward token, we transfer them right away
-            IRewarder rewarder = _reliquary.rewarder(position.poolId);
-            if (address(rewarder) != address(0)) {
-                IERC20 additionalRewardToken = IRewarder(rewarder).rewardToken();
-                additionalRewardToken.transfer(recipient, additionalRewardToken.balanceOf(address(this)));
-            }
-        }
-        rewardToken.transfer(recipient, rewardToken.balanceOf(address(this)));
     }
 }

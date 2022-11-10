@@ -9,6 +9,7 @@ import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC7
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC721.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ReentrancyGuard.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ERC721.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
 contract Constant is IEmissionCurve {
     uint256 public _rate;
@@ -80,6 +81,7 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
         IRewarder indexed rewarder,
         INFTDescriptor nftDescriptor
     );
+    event MaturityBonus(uint256 indexed pid, address indexed to, uint256 indexed relicId, uint256 bonus);
     event LogUpdatePool(uint256 indexed pid, uint256 lastRewardTime, uint256 lpSupply, uint256 accRewardPerShare);
     event LogSetEmissionCurve(IEmissionCurve indexed emissionCurveAddress);
     event LevelChanged(uint256 indexed relicId, uint256 newLevel);
@@ -233,8 +235,29 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
         }
 
         pool.name = name;
+        nftDescriptor[pid] = _nftDescriptor;
 
         emit LogPoolModified(pid, allocPoint, overwriteRewarder ? _rewarder : rewarder[pid], _nftDescriptor);
+    }
+
+    /*
+     + @notice Allows an address with the MATURITY_MODIFIER role to modify a position's maturity within set limits.
+     + @param relicId The NFT ID of the position being modified.
+     + @param points Number of seconds to reduce the position's entry by (increasing maturity), before maximum.
+     + @return receivedBonus Actual maturity bonus received after maximum.
+    */
+    function modifyMaturity(uint256 relicId, uint256 points) external override returns (uint256 receivedBonus) {
+        receivedBonus = Math.max(1 days, points);
+        PositionInfo storage position = positionForId[relicId];
+        position.entry -= receivedBonus;
+        _updatePosition(0, relicId, Kind.OTHER, address(0));
+
+        emit MaturityBonus(position.poolId, ownerOf(relicId), relicId, receivedBonus);
+    }
+
+    function updateLastMaturityBonus(uint256 relicId) external override {
+        PositionInfo storage position = positionForId[relicId];
+        position.lastMaturityBonus = block.timestamp;
     }
 
     /*
@@ -263,6 +286,50 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
             ACC_REWARD_PRECISION +
             position.rewardCredit -
             position.rewardDebt;
+    }
+
+    /*
+     + @notice View function to retrieve the relicIds, poolIds, and pendingReward for each Relic owned by an address.
+     + @param owner Address of the owner to retrieve info for.
+     + @return pendingRewards Array of PendingReward objects.
+    */
+    function pendingRewardsOfOwner(address owner)
+        external
+        view
+        override
+        returns (PendingReward[] memory pendingRewards)
+    {
+        uint256 balance = balanceOf(owner);
+        pendingRewards = new PendingReward[](balance);
+        for (uint256 i; i < balance; i = _uncheckedInc(i)) {
+            uint256 relicId = tokenOfOwnerByIndex(owner, i);
+            pendingRewards[i] = PendingReward({
+                relicId: relicId,
+                poolId: positionForId[relicId].poolId,
+                pendingReward: pendingReward(relicId)
+            });
+        }
+    }
+
+    /*
+     + @notice View function to retrieve owned positions for an address.
+     + @param owner Address of the owner to retrieve info for.
+     + @return relicIds Each relicId owned by the given address.
+     + @return positionInfos The PositionInfo object for each relicId.
+    */
+    function relicPositionsOfOwner(address owner)
+        external
+        view
+        override
+        returns (uint256[] memory relicIds, PositionInfo[] memory positionInfos)
+    {
+        uint256 balance = balanceOf(owner);
+        relicIds = new uint256[](balance);
+        positionInfos = new PositionInfo[](balance);
+        for (uint256 i; i < balance; i = _uncheckedInc(i)) {
+            relicIds[i] = tokenOfOwnerByIndex(owner, i);
+            positionInfos[i] = positionForId[relicIds[i]];
+        }
     }
 
     /*
@@ -343,7 +410,9 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
     ) external override nonReentrant returns (uint256 id) {
         require(pid < poolInfo.length, "invalid pool ID");
         id = _mint(to);
-        positionForId[id].poolId = pid;
+        PositionInfo storage position = positionForId[id];
+        position.poolId = pid;
+        position.genesis = block.timestamp;
         _deposit(amount, id);
         emit CreateRelic(pid, to, id);
     }
@@ -362,7 +431,7 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
     function _deposit(uint256 amount, uint256 relicId) internal {
         require(amount != 0, "depositing 0 amount");
 
-        (uint256 poolId, ) = _updatePosition(amount, relicId, Kind.DEPOSIT, false);
+        (uint256 poolId, ) = _updatePosition(amount, relicId, Kind.DEPOSIT, address(0));
 
         poolToken[poolId].safeTransferFrom(msg.sender, address(this), amount);
 
@@ -378,7 +447,7 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
         require(amount != 0, "withdrawing 0 amount");
         _requireApprovedOrOwner(relicId);
 
-        (uint256 poolId, ) = _updatePosition(amount, relicId, Kind.WITHDRAW, false);
+        (uint256 poolId, ) = _updatePosition(amount, relicId, Kind.WITHDRAW, address(0));
 
         poolToken[poolId].safeTransfer(msg.sender, amount);
 
@@ -388,30 +457,36 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
     /*
      + @notice Harvest proceeds for transaction sender to owner of `relicId`.
      + @param relicId NFT ID of the position being harvested.
+     + @param harvestTo Address to send rewards to (zero address if harvest should not be performed).
     */
-    function harvest(uint256 relicId) external override nonReentrant {
+    function harvest(uint256 relicId, address harvestTo) external override nonReentrant {
         _requireApprovedOrOwner(relicId);
 
-        (uint256 poolId, uint256 _pendingReward) = _updatePosition(0, relicId, Kind.OTHER, true);
+        (uint256 poolId, uint256 _pendingReward) = _updatePosition(0, relicId, Kind.OTHER, harvestTo);
 
-        emit Harvest(poolId, _pendingReward, msg.sender, relicId);
+        emit Harvest(poolId, _pendingReward, harvestTo, relicId);
     }
 
     /*
      + @notice Withdraw LP tokens and harvest proceeds for transaction sender to owner of `relicId`.
      + @param amount token amount to withdraw.
      + @param relicId NFT ID of the position being withdrawn and harvested.
+     + @param harvestTo Address to send rewards to (zero address if harvest should not be performed).
     */
-    function withdrawAndHarvest(uint256 amount, uint256 relicId) external override nonReentrant {
+    function withdrawAndHarvest(
+        uint256 amount,
+        uint256 relicId,
+        address harvestTo
+    ) external override nonReentrant {
         require(amount != 0, "withdrawing 0 amount");
         _requireApprovedOrOwner(relicId);
 
-        (uint256 poolId, uint256 _pendingReward) = _updatePosition(amount, relicId, Kind.WITHDRAW, true);
+        (uint256 poolId, uint256 _pendingReward) = _updatePosition(amount, relicId, Kind.WITHDRAW, harvestTo);
 
         poolToken[poolId].safeTransfer(msg.sender, amount);
 
         emit Withdraw(poolId, amount, msg.sender, relicId);
-        emit Harvest(poolId, _pendingReward, msg.sender, relicId);
+        emit Harvest(poolId, _pendingReward, harvestTo, relicId);
     }
 
     /*
@@ -439,7 +514,8 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
     /// @notice Update position without performing a deposit/withdraw/harvest.
     /// @param relicId The NFT ID of the position being updated.
     function updatePosition(uint256 relicId) external override nonReentrant {
-        _updatePosition(0, relicId, Kind.OTHER, false);
+        require(_exists(relicId), "Relic doesn't exist");
+        _updatePosition(0, relicId, Kind.OTHER, address(0));
     }
 
     /*
@@ -447,14 +523,14 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
      + @param amount Amount of poolToken to deposit/withdraw.
      + @param relicId The NFT ID of the position being updated.
      + @param kind Indicates whether tokens are being added to, or removed from, a pool.
-     + @param _harvest Whether a harvest should be performed.
+     + @param harvestTo Address to send rewards to (zero address if harvest should not be performed).
      + @return pending reward for a given position owner.
     */
     function _updatePosition(
         uint256 amount,
         uint256 relicId,
         Kind kind,
-        bool _harvest
+        address harvestTo
     ) internal returns (uint256 poolId, uint256 _pendingReward) {
         PositionInfo storage position = positionForId[relicId];
         poolId = position.poolId;
@@ -492,17 +568,17 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
             (newAmount * levels[poolId].allocPoint[newLevel] * accRewardPerShare) /
             ACC_REWARD_PRECISION;
 
-        if (!_harvest && _pendingReward != 0) {
+        if (harvestTo == address(0) && _pendingReward != 0) {
             position.rewardCredit += _pendingReward;
-        } else if (_harvest) {
+        } else if (harvestTo != address(0)) {
             uint256 total = _pendingReward + position.rewardCredit;
             uint256 received = _receivedReward(total);
             position.rewardCredit = total - received;
             if (received != 0) {
-                rewardToken.safeTransfer(msg.sender, received);
+                rewardToken.safeTransfer(harvestTo, received);
                 IRewarder _rewarder = rewarder[poolId];
                 if (address(_rewarder) != address(0)) {
-                    _rewarder.onReward(relicId, received);
+                    _rewarder.onReward(relicId, received, harvestTo);
                 }
             }
         }
@@ -591,6 +667,10 @@ contract MockReliquary is IReliquary, ERC721, ReentrancyGuard {
         for (uint256 i; i < length; i = _uncheckedInc(i)) {
             total += levelInfo.balance[i] * levelInfo.allocPoint[i];
         }
+    }
+
+    function isApprovedOrOwner(address spender, uint256 relicId) external view override returns (bool) {
+        return _isApprovedOrOwner(spender, relicId);
     }
 
     /// @notice Require the sender is either the owner of the Relic or approved to transfer it

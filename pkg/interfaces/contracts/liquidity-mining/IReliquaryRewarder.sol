@@ -6,9 +6,11 @@ pragma experimental ABIEncoderV2;
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 
 interface IRewarder {
-    function rewardToken() external returns (IERC20);
-
-    function onReward(uint256 relicId, uint256 rewardAmount) external;
+    function onReward(
+        uint256 relicId,
+        uint256 rewardAmount,
+        address to
+    ) external;
 
     function onDeposit(uint256 relicId, uint256 depositAmount) external;
 
