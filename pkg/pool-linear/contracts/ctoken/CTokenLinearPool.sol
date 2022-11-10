@@ -67,6 +67,7 @@ contract CTokenLinearPool is LinearPool {
         return assetManagers;
     }
 
+    // The return value must be scaled to 1e18
     function _getWrappedTokenRate() internal view override returns (uint256) {
         // exchangeRateStored returns the exchange rate scaled by 1e18, so no additional
         // operations are needed here.
