@@ -20,6 +20,7 @@ import "@balancer-labs/v2-interfaces/contracts/pool-utils/ILastCreatedPoolFactor
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
 import "../LinearPoolRebalancer.sol";
+import "hardhat/console.sol";
 
 contract YearnLinearPoolRebalancer is LinearPoolRebalancer {
     using Math for uint256;
@@ -51,6 +52,13 @@ contract YearnLinearPoolRebalancer is LinearPoolRebalancer {
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
+        console.log("YearnLinearPoolRebalancer: pricePerShare %s", 
+           IYearnTokenVault(address(_wrappedToken)).pricePerShare()
+        );
+        console.log("YearnLinearPoolRebalancer: _getRequiredTokensToWrap %s", 
+            wrappedAmount.mul(IYearnTokenVault(address(_wrappedToken)).pricePerShare()).divUp(_divisor)
+        );
+        
         // wrappedAmount * pps / 10^decimals
         return wrappedAmount.mul(IYearnTokenVault(address(_wrappedToken)).pricePerShare()).divUp(_divisor);
     }
