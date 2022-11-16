@@ -11,7 +11,7 @@ import { MAX_UINT256 } from '@balancer-labs/v2-helpers/src/constants';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
 import { SwapKind } from '@balancer-labs/balancer-js';
 
-describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
+describeForkTest('YearnLinearPoolFactory', 'optimism', 38556442, function () {
   let owner: SignerWithAddress, holder: SignerWithAddress, other: SignerWithAddress;
   let factory: Contract, vault: Contract, usdc: Contract;
   let rebalancer: Contract;
@@ -23,7 +23,7 @@ describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
 
   const USDC_SCALING = bn(1e12); // USDC has 6 decimals, so its scaling factor is 1e12
 
-  const USDC_HOLDER = '0xf44938b0125a6662f9536281ad2cd6c499f22004';
+  const USDC_HOLDER = '0xf390830df829cf22c53c8840554b98eafc5dcbc2';
 
   const SWAP_FEE_PERCENTAGE = fp(0.01); // 1%
 
@@ -92,10 +92,6 @@ describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
   });
 
   it('rebalances the pool', async () => {
-    const wrappedTokenRate = await pool.getWrappedTokenRate();
-    console.log('wrappedTokenRate', wrappedTokenRate.toString());
-    //1_017_315_000_000_000_000
-
     const { cash } = await vault.getPoolTokenInfo(poolId, USDC);
     const scaledCash = cash.mul(USDC_SCALING);
       

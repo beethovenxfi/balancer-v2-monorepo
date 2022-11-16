@@ -16,26 +16,24 @@ pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/pool-linear/IYearnTokenVault.sol";
+import "@balancer-labs/v2-interfaces/contracts/standalone-utils/IYearnShareValueHelper.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-utils/ILastCreatedPoolFactory.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
 import "../LinearPoolRebalancer.sol";
-import "hardhat/console.sol";
 
 contract YearnLinearPoolRebalancer is LinearPoolRebalancer {
     using Math for uint256;
 
-    uint256 private immutable _divisor;
+    IYearnShareValueHelper private immutable _shareValueHelper;
 
     // These Rebalancers can only be deployed from a factory to work around a circular dependency: the Pool must know
     // the address of the Rebalancer in order to register it, and the Rebalancer must know the address of the Pool
     // during construction.
-    constructor(IVault vault, IBalancerQueries queries)
+    constructor(IVault vault, IBalancerQueries queries, IYearnShareValueHelper shareValueHelper)
         LinearPoolRebalancer(ILinearPool(ILastCreatedPoolFactory(msg.sender).getLastCreatedPool()), vault, queries)
     {
-        IERC20 wrappedToken = ILinearPool(ILastCreatedPoolFactory(msg.sender).getLastCreatedPool()).getWrappedToken();
-
-        _divisor = 10**IYearnTokenVault(address(wrappedToken)).decimals();
+        _shareValueHelper = shareValueHelper;
     }
 
     function _wrapTokens(uint256 amount) internal override {
@@ -52,14 +50,6 @@ contract YearnLinearPoolRebalancer is LinearPoolRebalancer {
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
-        console.log("YearnLinearPoolRebalancer: pricePerShare %s", 
-           IYearnTokenVault(address(_wrappedToken)).pricePerShare()
-        );
-        console.log("YearnLinearPoolRebalancer: _getRequiredTokensToWrap %s", 
-            wrappedAmount.mul(IYearnTokenVault(address(_wrappedToken)).pricePerShare()).divUp(_divisor)
-        );
-        
-        // wrappedAmount * pps / 10^decimals
-        return wrappedAmount.mul(IYearnTokenVault(address(_wrappedToken)).pricePerShare()).divUp(_divisor);
+        return _shareValueHelper.sharesToAmount(address(_wrappedToken), wrappedAmount) + 1;
     }
 }

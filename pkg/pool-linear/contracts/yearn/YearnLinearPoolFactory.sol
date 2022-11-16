@@ -25,6 +25,7 @@ import "@balancer-labs/v2-pool-utils/contracts/factories/FactoryWidePauseWindow.
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Create2.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ReentrancyGuard.sol";
 
+import "@balancer-labs/v2-interfaces/contracts/standalone-utils/IYearnShareValueHelper.sol";
 import "./YearnLinearPool.sol";
 import "./YearnLinearPoolRebalancer.sol";
 
@@ -33,15 +34,18 @@ contract YearnLinearPoolFactory is ILastCreatedPoolFactory, BasePoolFactory, Ree
     uint256 private _nextRebalancerSalt;
 
     IBalancerQueries private immutable _queries;
+    IYearnShareValueHelper private immutable _shareValueHelper;
 
     address private _lastCreatedPool;
 
     constructor(
         IVault vault,
         IProtocolFeePercentagesProvider protocolFeeProvider,
-        IBalancerQueries queries
+        IBalancerQueries queries,
+        IYearnShareValueHelper shareValueHelper
     ) BasePoolFactory(vault, protocolFeeProvider, type(YearnLinearPool).creationCode) {
         _queries = queries;
+        _shareValueHelper = shareValueHelper;
     }
 
     function getLastCreatedPool() external view override returns (address) {
@@ -86,7 +90,7 @@ contract YearnLinearPoolFactory is ILastCreatedPoolFactory, BasePoolFactory, Ree
 
         bytes memory rebalancerCreationCode = abi.encodePacked(
             type(YearnLinearPoolRebalancer).creationCode,
-            abi.encode(getVault(), _queries)
+            abi.encode(getVault(), _queries, _shareValueHelper)
         );
         address expectedRebalancerAddress = Create2.computeAddress(rebalancerSalt, keccak256(rebalancerCreationCode));
 
@@ -103,7 +107,8 @@ contract YearnLinearPoolFactory is ILastCreatedPoolFactory, BasePoolFactory, Ree
             swapFeePercentage: swapFeePercentage,
             pauseWindowDuration: pauseWindowDuration,
             bufferPeriodDuration: bufferPeriodDuration,
-            owner: owner
+            owner: owner,
+            shareValueHelper: _shareValueHelper
         });
 
         YearnLinearPool pool = YearnLinearPool(_create(abi.encode(args)));
