@@ -13,6 +13,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 pragma solidity ^0.7.0;
+
 pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/pool-linear/IYearnTokenVault.sol";
@@ -50,6 +51,10 @@ contract YearnLinearPoolRebalancer is LinearPoolRebalancer {
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
+        // sharesToAmount returns how many main tokens will be returned when unwrapping. Since there's fixed point
+        // divisions and multiplications with rounding involved, this value might be off by one. We add one to ensure
+        // the returned value will always be enough to get `wrappedAmount` when unwrapping. This might result in some
+        // dust being left in the Rebalancer.
         return _shareValueHelper.sharesToAmount(address(_wrappedToken), wrappedAmount) + 1;
     }
 }

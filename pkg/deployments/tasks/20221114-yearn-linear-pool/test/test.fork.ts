@@ -11,7 +11,7 @@ import { MAX_UINT256 } from '@balancer-labs/v2-helpers/src/constants';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
 import { SwapKind } from '@balancer-labs/balancer-js';
 
-describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
+describeForkTest('YearnLinearPoolFactory', 'optimism', 38556442, function () {
   let owner: SignerWithAddress, holder: SignerWithAddress, other: SignerWithAddress;
   let factory: Contract, vault: Contract, usdc: Contract;
   let rebalancer: Contract;
@@ -21,11 +21,9 @@ describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
   const USDC = '0x7f5c764cbc14f9669b88837ca1490cca17c31607';
   const yvUSDC = '0x4c8b1958b09b3bde714f68864bcc3a74eaf1a23d';
 
-  // 1_944_252_384_259
-
   const USDC_SCALING = bn(1e12); // USDC has 6 decimals, so its scaling factor is 1e12
 
-  const USDC_HOLDER = '0xf44938b0125a6662f9536281ad2cd6c499f22004';
+  const USDC_HOLDER = '0xf390830df829cf22c53c8840554b98eafc5dcbc2';
 
   const SWAP_FEE_PERCENTAGE = fp(0.01); // 1%
 
@@ -67,18 +65,9 @@ describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
   function itRebalancesThePool(expectedState: LinearPoolState) {
     it('rebalance the pool', async () => {
       const { lowerTarget, upperTarget } = await pool.getTargets();
-
-      const wrappedTokenRate = await pool.getWrappedTokenRate();
-      console.log('wrappedTokenRate', wrappedTokenRate.toString());
-      //1_017_315_000_000_000_000
-
       const { cash } = await vault.getPoolTokenInfo(poolId, USDC);
       const scaledCash = cash.mul(USDC_SCALING);
 
-      console.log('cash', cash.toString());
-      //20_000_000_000_000
-      console.log('scaledCash', scaledCash.toString());
-      // 2_000_000_ 000_0000_000_000_000_000
       let fees;
       if (scaledCash.gt(upperTarget)) {
         expect(expectedState).to.equal(LinearPoolState.MAIN_EXCESS);
@@ -95,10 +84,8 @@ describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
 
         fees = 0;
       }
-      console.log('fees', fees.toString());
 
       const initialRecipientMainBalance = await usdc.balanceOf(other.address);
-      console.log('initialRecipientMainBalance', initialRecipientMainBalance);
       if (expectedState != LinearPoolState.BALANCED) {
         await rebalancer.connect(holder).rebalance(other.address);
         /*
@@ -130,7 +117,7 @@ describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
     });
   }
 
-  describe.only('create, join, and rebalance', () => {
+  describe('create, join, and rebalance', () => {
     it('deploy a linear pool', async () => {
       const tx = await factory.create('', '', USDC, yvUSDC, INITIAL_UPPER_TARGET, SWAP_FEE_PERCENTAGE, owner.address);
       const event = expectEvent.inReceipt(await tx.wait(), 'PoolCreated');
@@ -154,15 +141,6 @@ describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
 
       const joinAmount = INITIAL_UPPER_TARGET.mul(2).div(USDC_SCALING);
 
-
-      const holderBalance = await usdc.balanceOf(holder.address);
-      // 1e7 = 10_000_000
-      console.log('join amount', joinAmount.toString());
-      console.log('holder balance', holderBalance.toString());
-      // 20_000_000_000_000
-
-      //2_000_000_000_000
-
       await vault
         .connect(holder)
         .swap(
@@ -176,15 +154,13 @@ describeForkTest('YearnLinearPoolFactory', 'optimism', 38021383, function () {
       const excess = joinAmount.mul(USDC_SCALING).sub(INITIAL_UPPER_TARGET);
       const joinCollectedFees = excess.mul(SWAP_FEE_PERCENTAGE).div(FP_ONE);
 
-      console.log('joinCollectedFees', joinCollectedFees.toString())
-      //100_000 _000_000_000_000_000_000
       const expectedBPT = joinAmount.mul(USDC_SCALING).sub(joinCollectedFees);
       expect(await pool.balanceOf(holder.address)).to.equal(expectedBPT);
     });
 
     itRebalancesThePool(LinearPoolState.MAIN_EXCESS);
 
-    it.skip('set final targets', async () => {
+    it('set final targets', async () => {
       await pool.connect(owner).setTargets(FINAL_LOWER_TARGET, FINAL_UPPER_TARGET);
     }); 
   });

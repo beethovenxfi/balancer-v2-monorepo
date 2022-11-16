@@ -73,6 +73,8 @@ contract YearnLinearPool is LinearPool {
     }
 
     function _getWrappedTokenRate() internal view override returns (uint256) {
+        // _getWrappedTokenRate is expected to be scaled to 1e18 regardless of the underlying decimals.
+        // By fetching sharesToAmount with 1e18 we ensure we scale to the appropriate precision.
         return _shareValueHelper.sharesToAmount(address(_wrappedToken), 1e18);
     }
 }

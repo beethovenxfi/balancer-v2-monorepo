@@ -23,7 +23,6 @@ import "@balancer-labs/v2-interfaces/contracts/pool-linear/ILinearPool.sol";
 
 import "@balancer-labs/v2-solidity-utils/contracts/math/FixedPoint.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/SafeERC20.sol";
-import "hardhat/console.sol";
 
 abstract contract LinearPoolRebalancer {
     using SafeERC20 for IERC20;
@@ -176,17 +175,8 @@ abstract contract LinearPoolRebalancer {
         _withdrawFromPool(_mainToken, excessMainAmount);
         // We're not going to wrap the full amount, only what is required to get `wrappedAmountIn` back. Any remaining
         // main tokens will be transferred to the sender to refund the gas cost.
-        
-        console.log("LinearPoolRebalancer: excessMainAmount %s", excessMainAmount);
-        console.log("LinearPoolRebalancer: expected wrappedAmount %s", wrappedAmountIn);
-
         _wrapTokens(_getRequiredTokensToWrap(wrappedAmountIn));
-        
-        uint256 wrappedBalance = _wrappedToken.balanceOf(address(this));
-        uint256 mainBalance = _mainToken.balanceOf(address(this));
-        console.log("LinearPoolRebalancer: actual wrappedBalance after _wrapTokens %s", wrappedBalance);
-        console.log("LinearPoolRebalancer: mainBalance after _wrapTokens %s", mainBalance);
-        
+
         _depositToPool(_wrappedToken, wrappedAmountIn);
 
         // This contract will now hold excess main token, since we didn't wrap all that was withdrawn. These are sent to
