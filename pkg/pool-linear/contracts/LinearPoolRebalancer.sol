@@ -176,7 +176,6 @@ abstract contract LinearPoolRebalancer {
         // We're not going to wrap the full amount, only what is required to get `wrappedAmountIn` back. Any remaining
         // main tokens will be transferred to the sender to refund the gas cost.
         _wrapTokens(_getRequiredTokensToWrap(wrappedAmountIn));
-
         _depositToPool(_wrappedToken, wrappedAmountIn);
 
         // This contract will now hold excess main token, since we didn't wrap all that was withdrawn. These are sent to
