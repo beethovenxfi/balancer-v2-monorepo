@@ -14,21 +14,29 @@
 
 pragma solidity ^0.7.0;
 
-// The YearnShareValueHelper allows us to query a more precise rate than the pricePerShare (pps) provides.
-// The pps on the YearnTokenVaul is returned in the precision of the underlying main token (ie: USDC = 6),
-// but internally it stores more precision than what is represented in the returned value. So, with larger numbers,
-// using the truncated pps can cause precision errors when converting between shares and underlying.
-// The YearnShareValueHelper was implemented to overcome this limitation of the pps.
-// Contract was written by wavey (yearn dev)
-// https://github.com/wavey0x/YearnSharePriceConverter/blob/master/contracts/Helper.sol
-interface IYearnShareValueHelper {
+import "@balancer-labs/v2-interfaces/contracts/standalone-utils/IYearnShareValueHelper.sol";
+import "@balancer-labs/v2-interfaces/contracts/pool-linear/IYearnTokenVault.sol";
+
+contract MockYearnShareValueHelper is IYearnShareValueHelper {
+    constructor() { 
+        // solhint-disable-previous-line no-empty-blocks
+    }
+
     /**
      * @notice returns the amount of tokens required to mint the desired number of shares
      */
-    function sharesToAmount(address vault, uint256 shares) external view returns (uint256);
+    function sharesToAmount(address vault, uint256 shares) external override view returns (uint256) {
+        IYearnTokenVault tokenVault = IYearnTokenVault(vault);
+        
+        return shares * tokenVault.pricePerShare() / 10**tokenVault.decimals();
+    }
 
     /**
      * @notice returns the amount of shares required to burn to receive the desired amount of tokens
      */
-    function amountToShares(address vault, uint256 amount) external view returns (uint256);
+    function amountToShares(address vault, uint256 amount) external override view returns (uint256) {
+        IYearnTokenVault tokenVault = IYearnTokenVault(vault);
+        
+        return amount / tokenVault.pricePerShare() * 10**tokenVault.decimals();
+    }
 }
