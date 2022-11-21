@@ -16,6 +16,7 @@ pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/misc/IERC4626.sol";
+import "@balancer-labs/v2-pool-utils/contracts/lib/ExternalCallLib.sol";
 
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ERC20.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
@@ -98,12 +99,17 @@ contract ERC4626LinearPool is LinearPool {
 
         // Main tokens per 1e18 wrapped token wei
         //     decimals: main + (18 - wrapped)
-        uint256 assetsPerShare = wrappedToken.convertToAssets(FixedPoint.ONE);
-
-        // This function returns a 18 decimal fixed point number
-        //     assetsPerShare decimals:   18 + main - wrapped
-        //     _rateScaleFactor decimals: 18 - main + wrapped
-        uint256 rate = assetsPerShare.mul(_rateScaleFactor).divDown(FixedPoint.ONE);
-        return rate;
+        try wrappedToken.convertToAssets(FixedPoint.ONE) returns (uint256 assetsPerShare) {
+            // This function returns a 18 decimal fixed point number
+            //     assetsPerShare decimals:   18 + main - wrapped
+            //     _rateScaleFactor decimals: 18 - main + wrapped
+            uint256 rate = assetsPerShare.mul(_rateScaleFactor).divDown(FixedPoint.ONE);
+            return rate;
+        } catch (bytes memory revertData) {
+            // By maliciously reverting here, Gearbox (or any other contract in the call stack) could trick the Pool into
+            // reporting invalid data to the query mechanism for swaps/joins/exits.
+            // We then check the revert data to ensure this doesn't occur.
+            ExternalCallLib.bubbleUpNonMaliciousRevert(revertData);
+        }
     }
 }
