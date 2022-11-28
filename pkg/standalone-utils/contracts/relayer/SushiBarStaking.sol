@@ -30,7 +30,7 @@ import "./IBaseRelayerLibrary.sol";
 abstract contract SushiBarStaking is IBaseRelayerLibrary {
     using Address for address payable;
 
-    function sushiBarEnter(
+    function _sushiBarEnter(
         ISushiBar sushiBar,
         IERC20 token,
         address sender,
@@ -73,7 +73,7 @@ abstract contract SushiBarStaking is IBaseRelayerLibrary {
         }
     }
 
-    function sushiBarLeave(
+    function _sushiBarLeave(
         ISushiBar sushiBar,
         IERC20 token,
         address sender,

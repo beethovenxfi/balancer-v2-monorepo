@@ -42,7 +42,7 @@ abstract contract BooMirrorWorldStaking is SushiBarStaking {
         uint256 amount,
         uint256 outputReference
     ) external payable {
-        sushiBarEnter(_mirrorWorld, _mirrorWorld.boo(), sender, recipient, amount, outputReference);
+        _sushiBarEnter(_mirrorWorld, _mirrorWorld.boo(), sender, recipient, amount, outputReference);
     }
 
     function booMirrorWorldLeave(
@@ -51,6 +51,6 @@ abstract contract BooMirrorWorldStaking is SushiBarStaking {
         uint256 amount,
         uint256 outputReference
     ) external payable {
-        sushiBarLeave(_mirrorWorld, _mirrorWorld.boo(), sender, recipient, amount, outputReference);
+        _sushiBarLeave(_mirrorWorld, _mirrorWorld.boo(), sender, recipient, amount, outputReference);
     }
 }

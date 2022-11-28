@@ -41,7 +41,7 @@ abstract contract FBeetsBarStaking is SushiBarStaking {
         uint256 amount,
         uint256 outputReference
     ) external payable {
-        sushiBarEnter(_fBeetsBar, _fBeetsBar.vestingToken(), sender, recipient, amount, outputReference);
+        _sushiBarEnter(_fBeetsBar, _fBeetsBar.vestingToken(), sender, recipient, amount, outputReference);
     }
 
     function fBeetsBarLeave(
@@ -50,6 +50,6 @@ abstract contract FBeetsBarStaking is SushiBarStaking {
         uint256 amount,
         uint256 outputReference
     ) external payable {
-        sushiBarLeave(_fBeetsBar, _fBeetsBar.vestingToken(), sender, recipient, amount, outputReference);
+        _sushiBarLeave(_fBeetsBar, _fBeetsBar.vestingToken(), sender, recipient, amount, outputReference);
     }
 }

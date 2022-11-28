@@ -36,7 +36,7 @@ abstract contract TarotWrapping is SushiBarStaking {
         uint256 amount,
         uint256 outputReference
     ) external payable {
-        sushiBarEnter(supplyVault, supplyVault.underlying(), sender, recipient, amount, outputReference);
+        _sushiBarEnter(supplyVault, supplyVault.underlying(), sender, recipient, amount, outputReference);
     }
 
     function tarotSupplyVaultLeave(
@@ -46,6 +46,6 @@ abstract contract TarotWrapping is SushiBarStaking {
         uint256 amount,
         uint256 outputReference
     ) external payable {
-        sushiBarLeave(supplyVault, supplyVault.underlying(), sender, recipient, amount, outputReference);
+        _sushiBarLeave(supplyVault, supplyVault.underlying(), sender, recipient, amount, outputReference);
     }
 }
