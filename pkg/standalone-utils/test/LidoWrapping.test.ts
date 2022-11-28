@@ -64,7 +64,6 @@ describe('LidoWrapping', function () {
         ZERO_ADDRESS,
         ZERO_ADDRESS,
         ZERO_ADDRESS,
-        ZERO_ADDRESS,
       ],
     });
     relayer = await deployedAt('BalancerRelayer', await relayerLibrary.getEntrypoint());
