@@ -19,6 +19,7 @@ import "@balancer-labs/v2-interfaces/contracts/pool-linear/ICToken.sol";
 import "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Address.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/SafeERC20.sol";
 
 import "./IBaseRelayerLibrary.sol";
 
@@ -29,6 +30,7 @@ import "./IBaseRelayerLibrary.sol";
  */
 abstract contract CTokenWrapping is IBaseRelayerLibrary {
     using Address for address payable;
+    using SafeERC20 for IERC20;
 
     function wrapCToken(
         ICToken cToken,
@@ -50,14 +52,14 @@ abstract contract CTokenWrapping is IBaseRelayerLibrary {
             _pullToken(sender, underlying, amount);
         }
 
-        underlying.approve(address(cToken), amount);
+        underlying.safeApprove(address(cToken), amount);
         cToken.mint(amount);
 
         // Determine the amount of cTokens minted from depositing
         uint256 cTokenBalance = cToken.balanceOf(address(this));
 
         // Send the cTokens to the recipient
-        cToken.transfer(recipient, cTokenBalance);
+        IERC20(cToken).transfer(recipient, cTokenBalance);
 
         if (_isChainedReference(outputReference)) {
             _setChainedReferenceValue(outputReference, cTokenBalance);
@@ -90,7 +92,7 @@ abstract contract CTokenWrapping is IBaseRelayerLibrary {
         uint256 underlyingBalance = underlying.balanceOf(address(this));
 
         // Send the shares to the recipient
-        underlying.transfer(recipient, underlyingBalance);
+        underlying.safeTransfer(recipient, underlyingBalance);
 
         if (_isChainedReference(outputReference)) {
             _setChainedReferenceValue(outputReference, underlyingBalance);

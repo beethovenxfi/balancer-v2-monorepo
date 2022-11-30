@@ -15,11 +15,13 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
+import "@balancer-labs/v2-pool-utils/contracts/lib/ExternalCallLib.sol";
+import "@balancer-labs/v2-pool-utils/contracts/Version.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-linear/ICToken.sol";
 
 import "../LinearPool.sol";
 
-contract CTokenLinearPool is LinearPool {
+contract CTokenLinearPool is LinearPool, Version {
     ICToken private immutable _cToken;
 
     struct ConstructorArgs {
@@ -34,6 +36,7 @@ contract CTokenLinearPool is LinearPool {
         uint256 pauseWindowDuration;
         uint256 bufferPeriodDuration;
         address owner;
+        string version;
     }
 
     constructor(ConstructorArgs memory args)
@@ -50,6 +53,7 @@ contract CTokenLinearPool is LinearPool {
             args.bufferPeriodDuration,
             args.owner
         )
+        Version(args.version)
     {
         ICToken cToken = ICToken(address(args.wrappedToken));
 
@@ -67,10 +71,16 @@ contract CTokenLinearPool is LinearPool {
         return assetManagers;
     }
 
-    // The return value must be scaled to 1e18
     function _getWrappedTokenRate() internal view override returns (uint256) {
-        // exchangeRateStored returns the exchange rate scaled by 1e18, so no additional
-        // operations are needed here.
-        return _cToken.exchangeRateStored();
+        try _cToken.exchangeRateStored() returns (uint256 rate) {
+            // exchangeRateStored returns the exchange rate scaled by 1e18, so no additional
+            // operations are needed here.
+            return rate;
+        } catch (bytes memory revertData) {
+            // By maliciously reverting here, any contract in the call stack could trick the Pool into
+            // reporting invalid data to the query mechanism for swaps/joins/exits.
+            // We then check the revert data to ensure this doesn't occur.
+            ExternalCallLib.bubbleUpNonMaliciousRevert(revertData);
+        }
     }
 }
