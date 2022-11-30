@@ -17,8 +17,6 @@ pragma solidity ^0.7.0;
 import "@balancer-labs/v2-solidity-utils/contracts/test/TestToken.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-linear/ICToken.sol";
 
-//we're unable to implement IYearnTokenVault because it defines the decimals function, which collides with
-//the TestToken ERC20 implementation
 contract MockCToken is TestToken, ICToken {
     address public override immutable underlying;
     uint256 private _exchangeRate;
@@ -42,6 +40,8 @@ contract MockCToken is TestToken, ICToken {
      */
     function mint(uint256 mintAmount) public override returns (uint256) {
         uint256 amountToMint = mintAmount * 10**18 / _exchangeRate;
+
+        ERC20(underlying).transferFrom(msg.sender, address(this), mintAmount);
 
         _mint(msg.sender, amountToMint);
 

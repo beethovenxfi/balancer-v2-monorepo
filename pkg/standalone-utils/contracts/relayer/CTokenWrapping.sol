@@ -59,7 +59,7 @@ abstract contract CTokenWrapping is IBaseRelayerLibrary {
         uint256 cTokenBalance = cToken.balanceOf(address(this));
 
         // Send the cTokens to the recipient
-        IERC20(cToken).transfer(recipient, cTokenBalance);
+        IERC20(cToken).safeTransfer(recipient, cTokenBalance);
 
         if (_isChainedReference(outputReference)) {
             _setChainedReferenceValue(outputReference, cTokenBalance);
