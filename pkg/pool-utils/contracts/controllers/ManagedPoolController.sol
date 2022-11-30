@@ -15,7 +15,8 @@
 pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
-import "@balancer-labs/v2-interfaces/contracts/pool-utils/IControlledManagedPool.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/SafeERC20.sol";
+import "@balancer-labs/v2-interfaces/contracts/pool-utils/IManagedPool.sol";
 
 import "./BasePoolController.sol";
 
@@ -30,9 +31,10 @@ import "./BasePoolController.sol";
  * if the corresponding permission is set.
  */
 contract ManagedPoolController is BasePoolController {
+    using SafeERC20 for IERC20;
     using WordCodec for bytes32;
 
-    // There are six managed pool rights: all corresponding to permissioned functions of ManagedPool.
+    // There are seven managed pool rights: all corresponding to permissioned functions of ManagedPool.
     struct ManagedPoolRights {
         bool canChangeWeights;
         bool canDisableSwaps;
@@ -40,19 +42,22 @@ contract ManagedPoolController is BasePoolController {
         bool canSetCircuitBreakers;
         bool canChangeTokens;
         bool canChangeMgmtFees;
+        bool canDisableJoinExit;
     }
 
     // The minimum weight change duration could be replaced with more sophisticated rate-limiting.
     uint256 internal immutable _minWeightChangeDuration;
 
+    /* solhint-disable max-line-length */
     // Immutable controller state - the first 16 bits are reserved as a bitmap for permission flags
-    // (3 used in the base class; 6 used here), and the remaining 240 bits can be used by derived classes
+    // (3 used in the base class; 7 used here), and the remaining 240 bits can be used by derived classes
     // to store any other immutable data.
     //
-    //               Managed Pool Controller Permissions             |   Base Controller Permissions  ]
-    // [  240 | 7 bits |   1 bit  |  1 bit |  1 bit   | 1 bit | 1 bit |  1 bit  |  1 bit   |  1 bit   |   1 bit  ]
-    // [unused|reserved| mgmt fee | tokens | breakers |  LPs  | swaps | weights | metadata | swap fee | transfer ]
-    // |MSB                                                                                                   LSB|
+    // [                        Managed Pool Controller Permissions                         |   Base Controller Permissions  ]
+    // [  240 | 6 bits |   1 bit   |   1 bit  |  1 bit |  1 bit   | 1 bit | 1 bit |  1 bit  |  1 bit   |  1 bit   |   1 bit  ]
+    // [unused|reserved| join-exit | mgmt fee | tokens | breakers |  LPs  | swaps | weights | metadata | swap fee | transfer ]
+    // |MSB                                                                                                               LSB|
+    /* solhint-enable max-line-length */
 
     uint256 private constant _CHANGE_WEIGHTS_OFFSET = 3;
     uint256 private constant _DISABLE_SWAPS_OFFSET = 4;
@@ -60,6 +65,7 @@ contract ManagedPoolController is BasePoolController {
     uint256 private constant _CIRCUIT_BREAKERS_OFFSET = 6;
     uint256 private constant _CHANGE_TOKENS_OFFSET = 7;
     uint256 private constant _CHANGE_MGMT_FEES_OFFSET = 8;
+    uint256 private constant _DISABLE_JOIN_EXIT_OFFSET = 9;
 
     /**
      * @dev Pass in the `BasePoolRights` and `ManagedPoolRights` structures, to form the complete set of
@@ -89,6 +95,7 @@ contract ManagedPoolController is BasePoolController {
         // Needed to avoid "stack too deep"
         return
             permissions
+                .insertBool(managedRights.canDisableJoinExit, _DISABLE_JOIN_EXIT_OFFSET)
                 .insertBool(managedRights.canChangeMgmtFees, _CHANGE_MGMT_FEES_OFFSET)
                 .insertBool(managedRights.canChangeTokens, _CHANGE_TOKENS_OFFSET)
                 .insertBool(managedRights.canSetCircuitBreakers, _CIRCUIT_BREAKERS_OFFSET);
@@ -137,6 +144,13 @@ contract ManagedPoolController is BasePoolController {
     }
 
     /**
+     * @dev Getter for the canDisableJoinExit permission.
+     */
+    function canDisableJoinExit() public view returns (bool) {
+        return _controllerState.decodeBool(_DISABLE_JOIN_EXIT_OFFSET);
+    }
+
+    /**
      * @dev Getter for the minimum weight change duration.
      */
     function getMinWeightChangeDuration() external view returns (uint256) {
@@ -150,6 +164,7 @@ contract ManagedPoolController is BasePoolController {
     function updateWeightsGradually(
         uint256 startTime,
         uint256 endTime,
+        IERC20[] calldata tokens,
         uint256[] calldata endWeights
     ) external virtual onlyManager withBoundPool {
         _require(canChangeWeights(), Errors.FEATURE_DISABLED);
@@ -158,7 +173,7 @@ contract ManagedPoolController is BasePoolController {
             Errors.WEIGHT_CHANGE_TOO_FAST
         );
 
-        IControlledManagedPool(pool).updateWeightsGradually(startTime, endTime, endWeights);
+        IManagedPool(pool).updateWeightsGradually(startTime, endTime, tokens, endWeights);
     }
 
     /**
@@ -167,7 +182,7 @@ contract ManagedPoolController is BasePoolController {
     function setSwapEnabled(bool swapEnabled) external virtual onlyManager withBoundPool {
         _require(canDisableSwaps(), Errors.FEATURE_DISABLED);
 
-        IControlledManagedPool(pool).setSwapEnabled(swapEnabled);
+        IManagedPool(pool).setSwapEnabled(swapEnabled);
     }
 
     /**
@@ -182,7 +197,7 @@ contract ManagedPoolController is BasePoolController {
     function setMustAllowlistLPs(bool mustAllowlistLPs) external virtual onlyManager withBoundPool {
         _require(canSetMustAllowlistLPs(), Errors.FEATURE_DISABLED);
 
-        IControlledManagedPool(pool).setMustAllowlistLPs(mustAllowlistLPs);
+        IManagedPool(pool).setMustAllowlistLPs(mustAllowlistLPs);
     }
 
     /**
@@ -190,7 +205,7 @@ contract ManagedPoolController is BasePoolController {
      * The underlying pool handles all state/permission checks. It will revert if the LP allowlist is off.
      */
     function addAllowedAddress(address member) external virtual onlyManager withBoundPool {
-        IControlledManagedPool(pool).addAllowedAddress(member);
+        IManagedPool(pool).addAllowedAddress(member);
     }
 
     /**
@@ -199,28 +214,14 @@ contract ManagedPoolController is BasePoolController {
      * previouslly added to the allowlist.
      */
     function removeAllowedAddress(address member) external virtual onlyManager withBoundPool {
-        IControlledManagedPool(pool).removeAllowedAddress(member);
+        IManagedPool(pool).removeAllowedAddress(member);
     }
 
     /**
      * @dev Transfer any BPT management fees from this contract to the recipient.
      */
     function withdrawCollectedManagementFees(address recipient) external virtual onlyManager withBoundPool {
-        IERC20(pool).transfer(recipient, IERC20(pool).balanceOf(address(this)));
-    }
-
-    /**
-     * @dev Pass a call to ManagedPool's setManagementSwapFeePercentage through to the underlying pool.
-     */
-    function setManagementSwapFeePercentage(uint256 managementSwapFeePercentage)
-        external
-        virtual
-        onlyManager
-        withBoundPool
-    {
-        _require(canChangeManagementFees(), Errors.FEATURE_DISABLED);
-
-        IControlledManagedPool(pool).setManagementSwapFeePercentage(managementSwapFeePercentage);
+        IERC20(pool).safeTransfer(recipient, IERC20(pool).balanceOf(address(this)));
     }
 
     /**
@@ -235,6 +236,15 @@ contract ManagedPoolController is BasePoolController {
     {
         _require(canChangeManagementFees(), Errors.FEATURE_DISABLED);
 
-        return IControlledManagedPool(pool).setManagementAumFeePercentage(managementAumFeePercentage);
+        return IManagedPool(pool).setManagementAumFeePercentage(managementAumFeePercentage);
+    }
+
+    /**
+     * @dev Pass a call to ManagedPool's setJoinExitEnabled through to the underlying pool.
+     */
+    function setJoinExitEnabled(bool joinExitEnabled) external virtual onlyManager withBoundPool {
+        _require(canDisableJoinExit(), Errors.FEATURE_DISABLED);
+
+        IManagedPool(pool).setJoinExitEnabled(joinExitEnabled);
     }
 }
