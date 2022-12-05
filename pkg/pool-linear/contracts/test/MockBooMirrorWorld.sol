@@ -15,10 +15,9 @@
 pragma solidity ^0.7.0;
 
 import "@balancer-labs/v2-solidity-utils/contracts/test/TestToken.sol";
-import "@balancer-labs/v2-interfaces/contracts/pool-linear/IBooMirrorWorld.sol";
 
-contract MockBooMirrorWorld is TestToken, IBooMirrorWorld {
-    IERC20 public override boo;
+contract MockBooMirrorWorld is TestToken {
+    IERC20 public immutable boo;
 
     constructor(
         string memory name,
@@ -29,7 +28,7 @@ contract MockBooMirrorWorld is TestToken, IBooMirrorWorld {
         boo = IERC20(underlyingAsset);
     }
 
-    function xBOOForBOO(uint256 _xBOOAmount) external view override returns (uint256 booAmount_) {
+    function xBOOForBOO(uint256 _xBOOAmount) external view returns (uint256 booAmount_) {
         uint256 totalxBOO = totalSupply();
 
         booAmount_ = _xBOOAmount * boo.balanceOf(address(this)) / totalxBOO;

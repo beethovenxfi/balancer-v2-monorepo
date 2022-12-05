@@ -16,7 +16,7 @@ pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/pool-linear/IBooMirrorWorld.sol";
-import "@balancer-labs/v2-interfaces/contracts/liquidity-mining/ISushiBar.sol";
+import "@balancer-labs/v2-interfaces/contracts/pool-linear/ISushiBar.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-utils/ILastCreatedPoolFactory.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/SafeERC20.sol";
 
@@ -48,10 +48,6 @@ contract BooLinearPoolRebalancer is LinearPoolRebalancer {
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
-        // staticToDynamic returns how many main tokens will be returned when unwrapping. Since there's fixed point
-        // divisions and multiplications with rounding involved, this value might be off by one. We add one to ensure
-        // the returned value will always be enough to get `wrappedAmount` when unwrapping. This might result in some
-        // dust being left in the Rebalancer.
         return IBooMirrorWorld(address(_wrappedToken)).xBOOForBOO(wrappedAmount);
     }
 }

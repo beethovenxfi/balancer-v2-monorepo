@@ -15,8 +15,9 @@
 pragma solidity ^0.7.0;
 
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ERC20.sol";
+import "./ISushiBar.sol";
 
-interface IBooMirrorWorld {
+interface IBooMirrorWorld is ISushiBar {
     /**
      * @dev The BOO token
      */
