@@ -28,6 +28,7 @@ import "./relayer/MasterChefStaking.sol";
 import "./relayer/FBeetsBarStaking.sol";
 import "./relayer/BooMirrorWorldStaking.sol";
 import "./relayer/ReliquaryStaking.sol";
+import "./relayer/TarotWrapping.sol";
 import "./relayer/VaultActions.sol";
 import "./relayer/VaultPermit.sol";
 
@@ -37,18 +38,15 @@ import "./relayer/VaultPermit.sol";
  * The associated relayer can be found by calling `getEntrypoint` on this contract.
  */
 contract BatchRelayerLibrary is
-    AaveWrapping,
     BaseRelayerLibrary,
     ERC4626Wrapping,
-    GaugeActions,
-    LidoWrapping,
-    UnbuttonWrapping,
     YearnWrapping,
     ReaperWrapping,
     MasterChefStaking,
     BooMirrorWorldStaking,
     FBeetsBarStaking,
     ReliquaryStaking,
+    TarotWrapping,
     VaultActions,
     VaultPermit
 {
@@ -62,8 +60,6 @@ contract BatchRelayerLibrary is
         IReliquary reliquary
     )
         BaseRelayerLibrary(vault)
-        LidoWrapping(wstETH)
-        GaugeActions(minter)
         MasterChefStaking(masterChef)
         BooMirrorWorldStaking(mirrorWorld)
         FBeetsBarStaking(fBeetsBar)
