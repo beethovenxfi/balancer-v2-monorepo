@@ -50,6 +50,10 @@ contract TarotLinearPoolRebalancer is LinearPoolRebalancer, TarotShareValueHelpe
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
-        return _sharesToAmount(wrappedAmount);
+        // sharesToAmount returns how many main tokens will be returned when unwrapping. Since there's fixed point
+        // divisions and multiplications with rounding involved, this value might be off by one. We add one to ensure
+        // the returned value will always be enough to get `wrappedAmount` when unwrapping. This might result in some
+        // dust being left in the Rebalancer.
+        return _sharesToAmount(wrappedAmount) + 1;
     }
 }
