@@ -14,12 +14,22 @@
 
 pragma solidity ^0.7.0;
 
-import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
-import "./ISushiBar.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/test/TestToken.sol";
 
-interface IBooMirrorWorld is ISushiBar {
-    /**
-     * @dev The BOO token
-     */
-    function boo() external view returns (IERC20);
+contract MockTarotSupplyVault is TestToken {
+    address public underlying;
+    mapping(uint256 => address) public borrowables;
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint8 decimals,
+        address underlyingAsset
+    ) TestToken(name, symbol, decimals) {
+        underlying = underlyingAsset;
+    }
+
+    function getBorrowablesLength() external pure returns (uint256) {
+        return 0;
+    }
 }

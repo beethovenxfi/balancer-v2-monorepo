@@ -14,12 +14,20 @@
 
 pragma solidity ^0.7.0;
 
-import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
-import "./ISushiBar.sol";
+interface ITarotBorrowable {
+    function totalSupply() external view returns (uint256);
 
-interface ITarotSupplyVault is ISushiBar {
-    /**
-     * @dev The underlying token
-     */
-    function underlying() external view returns (IERC20);
+    function totalBalance() external view returns (uint256);
+
+    function totalBorrows() external view returns (uint256);
+
+    function borrowRate() external view returns (uint256);
+
+    function accrualTimestamp() external view returns (uint32);
+
+    function reserveFactor() external view returns (uint256);
+
+    function exchangeRateLast() external view returns (uint256);
+
+    function balanceOf(address) external view returns (uint256);
 }
