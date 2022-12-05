@@ -24,6 +24,10 @@ import "./relayer/LidoWrapping.sol";
 import "./relayer/UnbuttonWrapping.sol";
 import "./relayer/YearnWrapping.sol";
 import "./relayer/ReaperWrapping.sol";
+import "./relayer/MasterChefStaking.sol";
+import "./relayer/FBeetsBarStaking.sol";
+import "./relayer/BooMirrorWorldStaking.sol";
+import "./relayer/ReliquaryStaking.sol";
 import "./relayer/VaultActions.sol";
 import "./relayer/VaultPermit.sol";
 
@@ -41,14 +45,30 @@ contract BatchRelayerLibrary is
     UnbuttonWrapping,
     YearnWrapping,
     ReaperWrapping,
+    MasterChefStaking,
+    BooMirrorWorldStaking,
+    FBeetsBarStaking,
+    ReliquaryStaking,
     VaultActions,
     VaultPermit
 {
     constructor(
         IVault vault,
         IERC20 wstETH,
-        IBalancerMinter minter
-    ) BaseRelayerLibrary(vault) LidoWrapping(wstETH) GaugeActions(minter) {
+        IBalancerMinter minter,
+        IMasterChef masterChef,
+        IBooMirrorWorld mirrorWorld,
+        IFBeetsBar fBeetsBar,
+        IReliquary reliquary
+    )
+        BaseRelayerLibrary(vault)
+        LidoWrapping(wstETH)
+        GaugeActions(minter)
+        MasterChefStaking(masterChef)
+        BooMirrorWorldStaking(mirrorWorld)
+        FBeetsBarStaking(fBeetsBar)
+        ReliquaryStaking(reliquary)
+    {
         // solhint-disable-previous-line no-empty-blocks
     }
 }
