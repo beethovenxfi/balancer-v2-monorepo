@@ -38,7 +38,7 @@ describeForkTest('TarotLinearPoolFactory', 'opera', 51905777, function () {
   let poolId: string;
 
   before('run task', async () => {
-    task = new Task('20221205-tarot-linear-pool', TaskMode.TEST, getForkedNetwork(hre));
+    task = new Task('20221205-tarot-linear-pool-v2', TaskMode.TEST, getForkedNetwork(hre));
     await task.run({ force: true });
     factory = await task.deployedInstance('TarotLinearPoolFactory');
   });
