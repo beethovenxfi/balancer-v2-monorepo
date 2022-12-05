@@ -13,6 +13,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 pragma solidity ^0.7.0;
+
 pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/pool-linear/IYearnTokenVault.sol";
@@ -20,8 +21,9 @@ import "@balancer-labs/v2-interfaces/contracts/pool-utils/ILastCreatedPoolFactor
 import "@balancer-labs/v2-solidity-utils/contracts/math/Math.sol";
 
 import "../LinearPoolRebalancer.sol";
+import "./YearnShareValueHelper.sol";
 
-contract YearnLinearPoolRebalancer is LinearPoolRebalancer {
+contract YearnLinearPoolRebalancer is LinearPoolRebalancer, YearnShareValueHelper {
     using Math for uint256;
 
     // These Rebalancers can only be deployed from a factory to work around a circular dependency: the Pool must know
@@ -47,9 +49,10 @@ contract YearnLinearPoolRebalancer is LinearPoolRebalancer {
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
-        IYearnTokenVault tokenVault = IYearnTokenVault(address(_wrappedToken));
-        
-        // wrappedAmount * pps / 10^decimals
-        return wrappedAmount.mul(tokenVault.pricePerShare()).divUp(10**tokenVault.decimals());
+        // sharesToAmount returns how many main tokens will be returned when unwrapping. Since there's fixed point
+        // divisions and multiplications with rounding involved, this value might be off by one. We add one to ensure
+        // the returned value will always be enough to get `wrappedAmount` when unwrapping. This might result in some
+        // dust being left in the Rebalancer.
+        return _sharesToAmount(address(_wrappedToken), wrappedAmount) + 1;
     }
 }

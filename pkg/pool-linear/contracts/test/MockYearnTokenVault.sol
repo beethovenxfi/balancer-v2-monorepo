@@ -21,6 +21,7 @@ import "@balancer-labs/v2-solidity-utils/contracts/test/TestToken.sol";
 contract MockYearnTokenVault is TestToken {
     address private immutable _token;
     uint256 private _pricePerShare;
+    uint256 private _totalSupply;
 
     constructor(
         string memory name,
@@ -31,6 +32,7 @@ contract MockYearnTokenVault is TestToken {
     ) TestToken(name, symbol, decimals) {
         _token = underlyingAsset;
         _pricePerShare = sharePrice;
+        _totalSupply = 0;
     }
 
     function token() external view returns (address) {
@@ -63,5 +65,30 @@ contract MockYearnTokenVault is TestToken {
         ERC20(_token).transfer(recipient, amountToReturn);
 
         return amountToReturn;
+    }
+
+
+    function lockedProfitDegradation() external pure returns (uint256) {
+        return 1e18;
+    }
+
+    function lastReport() external pure returns (uint256) {
+        return 0;
+    }
+
+    function totalAssets() external view returns (uint256) {
+        return totalSupply() * _pricePerShare / 10**decimals();
+    }
+
+    function lockedProfit() external pure returns (uint256) {
+        return 0;
+    }
+
+    function totalSupply() public view virtual override returns (uint256) {
+        return _totalSupply;
+    }
+
+    function setTotalSupply(uint256 _newTotalSupply) public {
+        _totalSupply = _newTotalSupply;
     }
 }

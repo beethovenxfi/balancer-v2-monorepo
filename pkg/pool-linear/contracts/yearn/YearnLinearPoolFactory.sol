@@ -18,7 +18,9 @@ pragma experimental ABIEncoderV2;
 import "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 import "@balancer-labs/v2-interfaces/contracts/standalone-utils/IBalancerQueries.sol";
 import "@balancer-labs/v2-interfaces/contracts/pool-utils/ILastCreatedPoolFactory.sol";
+import "@balancer-labs/v2-interfaces/contracts/pool-utils/IFactoryCreatedPoolVersion.sol";
 
+import "@balancer-labs/v2-pool-utils/contracts/Version.sol";
 import "@balancer-labs/v2-pool-utils/contracts/factories/BasePoolFactory.sol";
 import "@balancer-labs/v2-pool-utils/contracts/factories/FactoryWidePauseWindow.sol";
 
@@ -28,24 +30,39 @@ import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/ReentrancyGuard.
 import "./YearnLinearPool.sol";
 import "./YearnLinearPoolRebalancer.sol";
 
-contract YearnLinearPoolFactory is ILastCreatedPoolFactory, BasePoolFactory, ReentrancyGuard, FactoryWidePauseWindow {
+contract YearnLinearPoolFactory is
+    ILastCreatedPoolFactory,
+    IFactoryCreatedPoolVersion,
+    Version,
+    BasePoolFactory,
+    ReentrancyGuard,
+    FactoryWidePauseWindow
+{
     // Used for create2 deployments
     uint256 private _nextRebalancerSalt;
 
     IBalancerQueries private immutable _queries;
 
     address private _lastCreatedPool;
+    string private _poolVersion;
 
     constructor(
         IVault vault,
         IProtocolFeePercentagesProvider protocolFeeProvider,
-        IBalancerQueries queries
-    ) BasePoolFactory(vault, protocolFeeProvider, type(YearnLinearPool).creationCode) {
+        IBalancerQueries queries,
+        string memory factoryVersion,
+        string memory poolVersion
+    ) BasePoolFactory(vault, protocolFeeProvider, type(YearnLinearPool).creationCode) Version(factoryVersion) {
         _queries = queries;
+        _poolVersion = poolVersion;
     }
 
     function getLastCreatedPool() external view override returns (address) {
         return _lastCreatedPool;
+    }
+
+    function getPoolVersion() public view override returns (string memory) {
+        return _poolVersion;
     }
 
     function _create(bytes memory constructorArgs) internal virtual override returns (address) {
@@ -103,7 +120,8 @@ contract YearnLinearPoolFactory is ILastCreatedPoolFactory, BasePoolFactory, Ree
             swapFeePercentage: swapFeePercentage,
             pauseWindowDuration: pauseWindowDuration,
             bufferPeriodDuration: bufferPeriodDuration,
-            owner: owner
+            owner: owner,
+            version: getPoolVersion()
         });
 
         YearnLinearPool pool = YearnLinearPool(_create(abi.encode(args)));

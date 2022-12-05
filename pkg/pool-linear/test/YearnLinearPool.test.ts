@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import { Contract } from 'ethers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/dist/src/signer-with-address';
 
-import { bn, fp, scaleUp } from '@balancer-labs/v2-helpers/src/numbers';
+import { bn, fp } from '@balancer-labs/v2-helpers/src/numbers';
 import { sharedBeforeEach } from '@balancer-labs/v2-common/sharedBeforeEach';
 import * as expectEvent from '@balancer-labs/v2-helpers/src/test/expectEvent';
 
@@ -14,7 +14,6 @@ import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import Vault from '@balancer-labs/v2-helpers/src/models/vault/Vault';
 import TokenList from '@balancer-labs/v2-helpers/src/models/tokens/TokenList';
 import { ZERO_ADDRESS } from '@balancer-labs/v2-helpers/src/constants';
-
 
 describe('YearnLinearPool', function () {
   let poolFactory: Contract;
@@ -28,8 +27,9 @@ describe('YearnLinearPool', function () {
   sharedBeforeEach('deploy pool factory', async () => {
     vault = await Vault.create();
     const queries = await deploy('v2-standalone-utils/BalancerQueries', { args: [vault.address] });
+
     poolFactory = await deploy('YearnLinearPoolFactory', {
-      args: [vault.address, vault.getFeesProvider().address, queries.address],
+      args: [vault.address, vault.getFeesProvider().address, queries.address, '1.0', '1.0'],
     });
   });
 
@@ -91,6 +91,7 @@ describe('YearnLinearPool', function () {
       const tokenVault = await deploy('MockYearnTokenVault', {
         args: ['yvDAI', 'yvDAI', 18, token.address, fp(1)],
       });
+      await tokenVault.setTotalSupply(fp(1));
 
       const pool = await deployPool(token.address, tokenVault.address);
 
@@ -109,6 +110,7 @@ describe('YearnLinearPool', function () {
       const tokenVault = await deploy('MockYearnTokenVault', {
         args: ['yvUSDC', 'yvUSDC', 6, token.address, 1e6],
       });
+      await tokenVault.setTotalSupply(fp(1));
 
       const pool = await deployPool(token.address, tokenVault.address);
 
@@ -123,10 +125,11 @@ describe('YearnLinearPool', function () {
     });
 
     it('should return correct rates for 8 decimal tokens', async () => {
-      const token = await Token.create({ symbol: 'wBTC', decimals: 6 });
+      const token = await Token.create({ symbol: 'wBTC', decimals: 8 });
       const tokenVault = await deploy('MockYearnTokenVault', {
         args: ['yvBTC', 'yvBTC', 8, token.address, 1e8],
       });
+      await tokenVault.setTotalSupply(fp(1));
 
       const pool = await deployPool(token.address, tokenVault.address);
 
@@ -145,6 +148,7 @@ describe('YearnLinearPool', function () {
       const tokenVault = await deploy('MockYearnTokenVault', {
         args: ['TOKEN', 'TOKEN', 2, token.address, 1e2],
       });
+      await tokenVault.setTotalSupply(fp(1));
 
       const pool = await deployPool(token.address, tokenVault.address);
 
