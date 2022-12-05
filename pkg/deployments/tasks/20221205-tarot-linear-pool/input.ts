@@ -1,6 +1,6 @@
 import Task, { TaskMode } from '../../src/task';
 
-export type YearnLinearPoolDeployment = {
+export type TarotLinearPoolDeployment = {
   Vault: string;
   ProtocolFeePercentagesProvider: string;
   BalancerQueries: string;

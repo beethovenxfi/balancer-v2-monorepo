@@ -5,6 +5,6 @@ import { BooLinearPoolDeployment } from './input';
 export default async (task: Task, { force, from }: TaskRunOptions = {}): Promise<void> => {
   const input = task.input() as BooLinearPoolDeployment;
 
-  const args = [input.Vault, input.ProtocolFeePercentagesProvider, input.BalancerQueries];
+  const args = [input.Vault, input.ProtocolFeePercentagesProvider, input.BalancerQueries, '2', '2'];
   await task.deployAndVerify('BooLinearPoolFactory', args, from, force);
 };

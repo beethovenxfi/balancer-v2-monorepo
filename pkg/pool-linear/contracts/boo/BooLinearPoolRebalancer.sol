@@ -48,6 +48,10 @@ contract BooLinearPoolRebalancer is LinearPoolRebalancer {
     }
 
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view override returns (uint256) {
-        return IBooMirrorWorld(address(_wrappedToken)).xBOOForBOO(wrappedAmount);
+        // xBOOForBOO returns how many BOO tokens will be returned when unwrapping. Since there's fixed point
+        // divisions and multiplications with rounding involved, this value might be off by one. We add one to ensure
+        // the returned value will always be enough to get `wrappedAmount` when unwrapping. This might result in some
+        // dust being left in the Rebalancer.
+        return IBooMirrorWorld(address(_wrappedToken)).xBOOForBOO(wrappedAmount) + 1;
     }
 }
