@@ -22,6 +22,8 @@ import "./relayer/ERC4626Wrapping.sol";
 import "./relayer/GaugeActions.sol";
 import "./relayer/LidoWrapping.sol";
 import "./relayer/UnbuttonWrapping.sol";
+import "./relayer/ReaperWrapping.sol";
+import "./relayer/YearnWrapping.sol";
 import "./relayer/VaultActions.sol";
 import "./relayer/VaultPermit.sol";
 
@@ -37,6 +39,8 @@ contract BatchRelayerLibrary is
     GaugeActions,
     LidoWrapping,
     UnbuttonWrapping,
+    YearnWrapping,
+    ReaperWrapping,
     VaultActions,
     VaultPermit
 {
