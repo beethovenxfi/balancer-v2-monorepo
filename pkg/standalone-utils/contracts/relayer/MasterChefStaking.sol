@@ -65,22 +65,4 @@ abstract contract MasterChefStaking is IBaseRelayerLibrary {
             _setChainedReferenceValue(outputReference, amount);
         }
     }
-
-    function masterChefWithdraw(
-        address recipient,
-        uint256 pid,
-        uint256 amount,
-        uint256 outputReference
-    ) external payable {
-        if (_isChainedReference(amount)) {
-            amount = _getChainedReferenceValue(amount);
-        }
-
-        // withdraw the token from the masterchef, sending it to the recipient
-        _masterChef.withdrawAndHarvest(pid, amount, recipient);
-
-        if (_isChainedReference(outputReference)) {
-            _setChainedReferenceValue(outputReference, amount);
-        }
-    }
 }
