@@ -16,12 +16,12 @@ pragma solidity ^0.7.0;
 pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/pool-linear/IYearnTokenVault.sol";
+import "@balancer-labs/v2-pool-utils/contracts/Version.sol";
 
 import "../LinearPool.sol";
+import "./YearnShareValueHelper.sol";
 
-contract YearnLinearPool is LinearPool {
-    IYearnTokenVault private immutable _tokenVault;
-
+contract YearnLinearPool is LinearPool, Version, YearnShareValueHelper {
     struct ConstructorArgs {
         IVault vault;
         string name;
@@ -34,6 +34,7 @@ contract YearnLinearPool is LinearPool {
         uint256 pauseWindowDuration;
         uint256 bufferPeriodDuration;
         address owner;
+        string version;
     }
 
     constructor(ConstructorArgs memory args)
@@ -50,12 +51,12 @@ contract YearnLinearPool is LinearPool {
             args.bufferPeriodDuration,
             args.owner
         )
+        Version(args.version)
     {
-        IYearnTokenVault tokenVault = IYearnTokenVault(address(args.wrappedToken));
-        
-        _tokenVault = tokenVault;
-
-        _require(address(args.mainToken) == tokenVault.token(), Errors.TOKENS_MISMATCH);
+        _require(
+            address(args.mainToken) == IYearnTokenVault(address(args.wrappedToken)).token(),
+            Errors.TOKENS_MISMATCH
+        );
     }
 
     function _toAssetManagerArray(ConstructorArgs memory args) private pure returns (address[] memory) {
@@ -67,20 +68,9 @@ contract YearnLinearPool is LinearPool {
         return assetManagers;
     }
 
-    //_getWrappedTokenRate is expected to return the rate scaled to 18 decimal points, regardless of underlying decimals
     function _getWrappedTokenRate() internal view override returns (uint256) {
-        //the decimals of the vault token reflect that of the mainToken. So a USDC token vault has decimals = 6
-        uint8 vaultDecimals = _tokenVault.decimals();
-        uint256 pps = _tokenVault.pricePerShare();
-
-        if (vaultDecimals > 18) {
-            //scale down to 18
-            return pps / 10**(vaultDecimals - 18);
-        }else if (vaultDecimals < 18) {
-            //scale up to 18
-            return pps * 10**(18 - vaultDecimals);
-        }
-
-        return pps;
+        // _getWrappedTokenRate is expected to be scaled to 1e18 regardless of the underlying decimals.
+        // By fetching sharesToAmount with 1e18 we ensure we scale to the appropriate precision.
+        return _sharesToAmount(address(getWrappedToken()), 1e18);
     }
 }

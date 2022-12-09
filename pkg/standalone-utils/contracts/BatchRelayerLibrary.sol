@@ -25,6 +25,11 @@ import "./relayer/UnbuttonWrapping.sol";
 import "./relayer/YearnWrapping.sol";
 import "./relayer/ReaperWrapping.sol";
 import "./relayer/CTokenWrapping.sol";
+import "./relayer/MasterChefStaking.sol";
+import "./relayer/FBeetsBarStaking.sol";
+import "./relayer/BooMirrorWorldStaking.sol";
+import "./relayer/ReliquaryStaking.sol";
+import "./relayer/TarotWrapping.sol";
 import "./relayer/VaultActions.sol";
 import "./relayer/VaultPermit.sol";
 
@@ -34,23 +39,34 @@ import "./relayer/VaultPermit.sol";
  * The associated relayer can be found by calling `getEntrypoint` on this contract.
  */
 contract BatchRelayerLibrary is
-    AaveWrapping,
     BaseRelayerLibrary,
     ERC4626Wrapping,
-    GaugeActions,
-    LidoWrapping,
-    UnbuttonWrapping,
     YearnWrapping,
     ReaperWrapping,
     CTokenWrapping,
+    MasterChefStaking,
+    BooMirrorWorldStaking,
+    FBeetsBarStaking,
+    ReliquaryStaking,
+    TarotWrapping,
     VaultActions,
     VaultPermit
 {
     constructor(
         IVault vault,
         IERC20 wstETH,
-        IBalancerMinter minter
-    ) BaseRelayerLibrary(vault) LidoWrapping(wstETH) GaugeActions(minter) {
+        IBalancerMinter minter,
+        IMasterChef masterChef,
+        IBooMirrorWorld mirrorWorld,
+        IFBeetsBar fBeetsBar,
+        IReliquary reliquary
+    )
+        BaseRelayerLibrary(vault)
+        MasterChefStaking(masterChef)
+        BooMirrorWorldStaking(mirrorWorld)
+        FBeetsBarStaking(fBeetsBar)
+        ReliquaryStaking(reliquary)
+    {
         // solhint-disable-previous-line no-empty-blocks
     }
 }
