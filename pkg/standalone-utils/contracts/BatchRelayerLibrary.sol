@@ -40,9 +40,6 @@ contract BatchRelayerLibrary is
     AaveWrapping,
     BaseRelayerLibrary,
     ERC4626Wrapping,
-    GaugeActions,
-    LidoWrapping,
-    UnbuttonWrapping,
     YearnWrapping,
     ReaperWrapping,
     MasterChefStaking,
@@ -54,16 +51,12 @@ contract BatchRelayerLibrary is
 {
     constructor(
         IVault vault,
-        IERC20 wstETH,
-        IBalancerMinter minter,
         IMasterChef masterChef,
         IBooMirrorWorld mirrorWorld,
         IFBeetsBar fBeetsBar,
         IReliquary reliquary
     )
         BaseRelayerLibrary(vault)
-        LidoWrapping(wstETH)
-        GaugeActions(minter)
         MasterChefStaking(masterChef)
         BooMirrorWorldStaking(mirrorWorld)
         FBeetsBarStaking(fBeetsBar)

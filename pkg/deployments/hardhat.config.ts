@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import '@nomiclabs/hardhat-ethers';
 import '@nomiclabs/hardhat-waffle';
 import 'hardhat-local-networks-config-plugin';
@@ -192,8 +194,33 @@ task('check-action-ids', `Check that contract action-ids correspond the expected
 
 task(TASK_TEST).addOptionalParam('id', 'Specific task ID of the fork test to run.').setAction(test);
 
+const DEPLOYER_PRIVATE_KEY =
+  process.env.DEPLOYER_PRIVATE_KEY || '0000000000000000000000000000000000000000000000000000000000000000';
+const INFURA_KEY = process.env.INFURA_KEY || '';
+
 export default {
-  mocha: {
-    timeout: 600000,
+  networks: {
+    opera: {
+      chainId: 250,
+      url: `https://rpc.ftm.tools/`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+    },
+    rinkeby: {
+      chainId: 4,
+      url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+      saveDeployments: true,
+      gasMultiplier: 10,
+    },
+    optimism: {
+      url: 'https://mainnet.optimism.io',
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+      chainId: 10,
+    },
+    goerli: {
+      url: `https://eth-goerli.alchemyapi.io/v2/${process.env.ALCHEMY_API_KEY}`,
+      chainId: 5,
+      accounts: [`0x${DEPLOYER_PRIVATE_KEY}`], // Using private key instead of mnemonic for vanity deploy
+    },
   },
 };
