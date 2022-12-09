@@ -20,6 +20,7 @@ import "@balancer-labs/v2-interfaces/contracts/pool-linear/ICToken.sol";
 contract MockCToken is TestToken, ICToken {
     address public override immutable underlying;
     uint256 private _exchangeRate;
+    uint256 private _temp;
 
     constructor(
         string memory name,
@@ -78,5 +79,11 @@ contract MockCToken is TestToken, ICToken {
 
     function setExchangeRate(uint256 newExchangeRate) public {
         _exchangeRate = newExchangeRate;
+    }
+
+    function accrueInterest() external override returns (uint256) {
+        _temp = 1;
+        
+        return 0;
     }
 }

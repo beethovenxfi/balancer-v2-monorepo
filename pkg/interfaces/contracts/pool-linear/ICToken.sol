@@ -50,4 +50,9 @@ interface ICToken is IERC20 {
      * @return Calculated exchange rate scaled by 1e18
      */
     function exchangeRateStored() external view returns (uint256);
+
+    /**
+     * @notice Accrues any pending interest, updating exchangeRateStored
+     */
+    function accrueInterest() external returns (uint256);
 }

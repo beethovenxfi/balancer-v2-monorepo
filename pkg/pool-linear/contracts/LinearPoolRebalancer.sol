@@ -102,6 +102,9 @@ abstract contract LinearPoolRebalancer {
         // zero), and work with the cash directly as if it were the total balance.
         (uint256 mainTokenBalance, , , ) = _vault.getPoolTokenInfo(_poolId, _mainToken);
 
+        // trigger any implementation specific state changes needed prior to performing the rebalance.
+        _beforeRebalance();
+        
         if (mainTokenBalance < desiredMainTokenBalance) {
             return _rebalanceLackOfMainToken(desiredMainTokenBalance - mainTokenBalance, recipient);
         } else if (mainTokenBalance > desiredMainTokenBalance) {
@@ -257,4 +260,11 @@ abstract contract LinearPoolRebalancer {
      * @dev Returns how many main tokens must be wrapped in order to get `wrappedAmount` back.
      */
     function _getRequiredTokensToWrap(uint256 wrappedAmount) internal view virtual returns (uint256);
+
+    /**
+     * @dev Performs any necessary state changing actions prior to triggering the rebalance
+     */
+    function _beforeRebalance() internal virtual {
+        // solhint-disable-previous-line no-empty-blocks
+    }
 }
