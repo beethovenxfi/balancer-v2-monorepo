@@ -24,6 +24,7 @@ import "./relayer/LidoWrapping.sol";
 import "./relayer/UnbuttonWrapping.sol";
 import "./relayer/YearnWrapping.sol";
 import "./relayer/ReaperWrapping.sol";
+import "./relayer/CTokenWrapping.sol";
 import "./relayer/MasterChefStaking.sol";
 import "./relayer/FBeetsBarStaking.sol";
 import "./relayer/BooMirrorWorldStaking.sol";
@@ -42,6 +43,7 @@ contract BatchRelayerLibrary is
     ERC4626Wrapping,
     YearnWrapping,
     ReaperWrapping,
+    CTokenWrapping,
     MasterChefStaking,
     BooMirrorWorldStaking,
     FBeetsBarStaking,
