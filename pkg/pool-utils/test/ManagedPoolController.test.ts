@@ -14,7 +14,7 @@ import {
 import { deploy } from '@balancer-labs/v2-helpers/src/contract';
 import { currentTimestamp, MONTH, DAY, HOUR } from '@balancer-labs/v2-helpers/src/time';
 import Vault from '@balancer-labs/v2-helpers/src/models/vault/Vault';
-import { ZERO_ADDRESS, MAX_UINT256 } from '@balancer-labs/v2-helpers/src/constants';
+import { ZERO_ADDRESS, MAX_UINT256, randomAddress } from '@balancer-labs/v2-helpers/src/constants';
 import { SwapKind } from '@balancer-labs/balancer-js';
 
 const POOL_SWAP_FEE_PERCENTAGE = fp(0.01);
@@ -26,7 +26,6 @@ const MIN_WEIGHT_CHANGE_DURATION = DAY;
 let admin: SignerWithAddress;
 let manager: SignerWithAddress;
 let other: SignerWithAddress;
-let assetManager: Contract;
 let pool: WeightedPool;
 let allTokens: TokenList;
 let vault: Vault;
@@ -50,8 +49,6 @@ sharedBeforeEach('deploy Vault, asset manager, and tokens', async () => {
   allTokens = await TokenList.create(['MKR', 'DAI', 'SNX', 'BAT'], { sorted: true });
   await allTokens.mint({ to: manager, amount: fp(100) });
   await allTokens.mint({ to: other, amount: fp(100) });
-
-  assetManager = await deploy('MockAssetManager', { args: [allTokens.DAI.address] });
 });
 
 async function deployControllerAndPool(
@@ -64,6 +61,7 @@ async function deployControllerAndPool(
   canSetCircuitBreakers = true,
   canChangeTokens = true,
   canChangeMgmtFees = true,
+  canDisableJoinExit = true,
   swapEnabledOnStart = true,
   protocolSwapFeePercentage = MAX_UINT256
 ) {
@@ -80,6 +78,7 @@ async function deployControllerAndPool(
     canSetCircuitBreakers: canSetCircuitBreakers,
     canChangeTokens: canChangeTokens,
     canChangeMgmtFees: canChangeMgmtFees,
+    canDisableJoinExit: canDisableJoinExit,
   };
 
   poolController = await deploy('ManagedPoolController', {
@@ -87,7 +86,7 @@ async function deployControllerAndPool(
     args: [basePoolRights, managedPoolRights, MIN_WEIGHT_CHANGE_DURATION, manager.address],
   });
   const assetManagers = Array(allTokens.length).fill(ZERO_ADDRESS);
-  assetManagers[allTokens.indexOf(allTokens.DAI)] = assetManager.address;
+  assetManagers[allTokens.indexOf(allTokens.DAI)] = await randomAddress();
 
   const params = {
     vault,
@@ -133,6 +132,7 @@ describe('ManagedPoolController', function () {
       expect(await poolController.canSetCircuitBreakers()).to.be.true;
       expect(await poolController.canChangeTokens()).to.be.true;
       expect(await poolController.canChangeManagementFees()).to.be.true;
+      expect(await poolController.canDisableJoinExit()).to.be.true;
     });
 
     it('sets the minimum weight change duration', async () => {
@@ -159,6 +159,18 @@ describe('ManagedPoolController', function () {
         await expect(poolController.connect(other).setManagementAumFeePercentage(NEW_MGMT_AUM_FEE)).to.be.revertedWith(
           'CALLER_IS_NOT_OWNER'
         );
+      });
+    });
+
+    describe('set join / exit enabled', () => {
+      it('lets the manager disable joins and exits', async () => {
+        await poolController.connect(manager).setJoinExitEnabled(false);
+
+        expect(await pool.getJoinExitEnabled(manager)).to.be.false;
+      });
+
+      it('reverts if non-manager disables joins and exits', async () => {
+        await expect(poolController.connect(other).setJoinExitEnabled(false)).to.be.revertedWith('CALLER_IS_NOT_OWNER');
       });
     });
 
@@ -295,7 +307,7 @@ describe('ManagedPoolController', function () {
 
     context('with canChangeMgmtFees set to false', () => {
       sharedBeforeEach('deploy controller (canChangeMgmtFees false)', async () => {
-        await deployControllerAndPool(true, true, true, true, true, false, true, true, false);
+        await deployControllerAndPool(true, true, true, true, true, true, true, true, false);
         await poolController.initialize(pool.address);
       });
 
@@ -306,9 +318,20 @@ describe('ManagedPoolController', function () {
       });
     });
 
+    context('with canDisableJoinExit set to false', () => {
+      sharedBeforeEach('deploy controller (canDisableJoinExit false)', async () => {
+        await deployControllerAndPool(true, true, true, true, true, true, true, true, true, false);
+        await poolController.initialize(pool.address);
+      });
+
+      it('reverts if the manager disables swaps', async () => {
+        await expect(poolController.connect(manager).setJoinExitEnabled(false)).to.be.revertedWith('FEATURE_DISABLED');
+      });
+    });
+
     context('with public swaps disabled (on start)', () => {
       sharedBeforeEach('deploy controller (swapEnabledOnStart false)', async () => {
-        await deployControllerAndPool(true, true, true, true, true, false, true, true, true, false);
+        await deployControllerAndPool(true, true, true, true, true, true, true, true, true, true, false);
         await poolController.initialize(pool.address);
         await allTokens.approve({ from: manager, to: await pool.getVault() });
         const initialBalances = Array(allTokens.length).fill(fp(1));
@@ -341,7 +364,7 @@ describe('ManagedPoolController', function () {
 
     context('with canSetCircuitBreakers set to false', () => {
       sharedBeforeEach('deploy controller (canSetCircuitBreakers false)', async () => {
-        await deployControllerAndPool(true, true, true, true, true, false, false);
+        await deployControllerAndPool(true, true, true, true, true, true, false);
       });
 
       it('sets the set circuit breakers permission', async () => {
@@ -351,7 +374,7 @@ describe('ManagedPoolController', function () {
 
     context('with canChangeTokens set to false', () => {
       sharedBeforeEach('deploy controller (canChangeTokens false)', async () => {
-        await deployControllerAndPool(true, true, true, true, true, false, true, false);
+        await deployControllerAndPool(true, true, true, true, true, true, true, false);
       });
 
       it('sets the change tokens permission', async () => {
@@ -361,7 +384,7 @@ describe('ManagedPoolController', function () {
 
     context('with canChangeMgmtFees set to false', () => {
       sharedBeforeEach('deploy controller (canChangeMgmtFees false)', async () => {
-        await deployControllerAndPool(true, true, true, true, true, false, false, false, false);
+        await deployControllerAndPool(true, true, true, true, true, true, true, true, false);
       });
 
       it('sets the set management fee permission', async () => {

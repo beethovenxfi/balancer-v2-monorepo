@@ -31,8 +31,6 @@ describe('ReaperWrapping', function () {
   });
 
   sharedBeforeEach('Deploy tokens and reaper vaults', async () => {
-    vault = await Vault.create({ admin });
-
     dai = await Token.create({ name: 'DAI', symbol: 'DAI', decimals: 18 });
     rfDAI = await deploy('v2-pool-linear/MockReaperVault', {
       args: ['yvDAI', 'yvDAI', 18, dai.address, yvDaiRate],
@@ -49,7 +47,10 @@ describe('ReaperWrapping', function () {
 
   sharedBeforeEach('set up relayer', async () => {
     // Deploy Relayer
-    relayerLibrary = await deploy('MockBatchRelayerLibrary', { args: [vault.address, ZERO_ADDRESS, ZERO_ADDRESS] });
+    relayerLibrary = await deploy('MockBatchRelayerLibrary', {
+      args: [vault.address, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS, ZERO_ADDRESS],
+    });
+
     relayer = await deployedAt('BalancerRelayer', await relayerLibrary.getEntrypoint());
 
     // Authorize Relayer for all actions
@@ -58,7 +59,7 @@ describe('ReaperWrapping', function () {
         actionId(vault.instance, action)
       )
     );
-    const authorizer = await deployedAt('v2-vault/TimelockAuthorizer', await vault.instance.getAuthorizer());
+    const authorizer = vault.authorizer;
     const wheres = relayerActionIds.map(() => ANY_ADDRESS);
     await authorizer.connect(admin).grantPermissions(relayerActionIds, relayer.address, wheres);
 

@@ -13,9 +13,9 @@ import { BigNumberish, fp } from '@balancer-labs/v2-helpers/src/numbers';
 import { ANY_ADDRESS, DELEGATE_OWNER, ZERO_ADDRESS } from '@balancer-labs/v2-helpers/src/constants';
 import { Account } from '@balancer-labs/v2-helpers/src/models/types/types';
 import TypesConverter from '@balancer-labs/v2-helpers/src/models/types/TypesConverter';
-import { expectBalanceChange } from '@balancer-labs/v2-helpers/src/test/tokenBalance';
 import { random } from 'lodash';
 import { defaultAbiCoder } from 'ethers/lib/utils';
+import Vault from '@balancer-labs/v2-helpers/src/models/vault/Vault';
 
 describe('BasePool', function () {
   let admin: SignerWithAddress, poolOwner: SignerWithAddress, deployer: SignerWithAddress, other: SignerWithAddress;
@@ -33,8 +33,7 @@ describe('BasePool', function () {
   });
 
   sharedBeforeEach(async () => {
-    authorizer = await deploy('v2-vault/TimelockAuthorizer', { args: [admin.address, ZERO_ADDRESS, MONTH] });
-    vault = await deploy('v2-vault/Vault', { args: [authorizer.address, ZERO_ADDRESS, 0, 0] });
+    ({ instance: vault, authorizer } = await Vault.create({ admin }));
     tokens = await TokenList.create(['DAI', 'MKR', 'SNX'], { sorted: true });
   });
 
@@ -768,16 +767,13 @@ describe('BasePool', function () {
               toInternalBalance: false,
             };
 
-            // The sole BPT holder is the owner, so they own the initial balances
-            const expectedChanges = tokens.reduce(
-              (changes, token, i) => ({ ...changes, [token.symbol]: ['very-near', initialBalances[i].div(3)] }),
-              {}
-            );
-            await expectBalanceChange(
-              () => vault.connect(poolOwner).exitPool(poolId, poolOwner.address, poolOwner.address, request),
-              tokens,
-              { account: poolOwner, changes: expectedChanges }
-            );
+            const totalSupply = await pool.totalSupply();
+            const tx = await vault.connect(poolOwner).exitPool(poolId, poolOwner.address, poolOwner.address, request);
+            expectEvent.inIndirectReceipt(await tx.wait(), pool.interface, 'RecoveryModeExit', {
+              totalSupply,
+              balances: initialBalances,
+              bptAmountIn: exitBPT,
+            });
 
             // Exit BPT was burned
             const afterExitBalance = await pool.balanceOf(poolOwner.address);

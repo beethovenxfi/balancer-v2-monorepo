@@ -41,9 +41,10 @@ describe('ERC4626LinearPool', function () {
 
   sharedBeforeEach('deploy pool factory', async () => {
     const vault = await Vault.create();
-    poolFactory = await deploy('ERC4626LinearPoolFactory', {
-      args: [vault.address, vault.getFeesProvider().address],
-    });
+    const queries = await deploy('v2-standalone-utils/BalancerQueries', { args: [vault.address] });
+    poolFactory = await deploy('ERC4626LinearPoolFactory', { 
+      args: [vault.address, vault.getFeesProvider().address, queries.address]
+     });
   });
 
   sharedBeforeEach('deploy and initialize pool', async () => {

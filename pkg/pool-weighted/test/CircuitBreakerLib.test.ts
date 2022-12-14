@@ -22,7 +22,8 @@ describe('CircuitBreakerLib', () => {
   let lib: Contract;
 
   before('deploy lib', async () => {
-    lib = await deploy('MockCircuitBreakerLib');
+    const circuitBreakerLib = await deploy('CircuitBreakerLib');
+    lib = await deploy('MockCircuitBreakerLib', { libraries: { CircuitBreakerLib: circuitBreakerLib.address } });
   });
 
   async function assertCircuitBreakerState(
@@ -189,7 +190,7 @@ describe('CircuitBreakerLib', () => {
 
   context('when both bounds are set', () => {
     const lowerBound = fp(randomFromInterval(MIN_BOUND, 1));
-    const upperBound = lowerBound.add(fp(randomFromInterval(MIN_BOUND, MAX_BOUND - 1)));
+    const upperBound = fp(randomFromInterval(1.001, MAX_BOUND));
 
     itSetsCircuitBreakersCorrectly(lowerBound, upperBound);
     itReportsTrippedBreakersCorrectly(lowerBound, upperBound);

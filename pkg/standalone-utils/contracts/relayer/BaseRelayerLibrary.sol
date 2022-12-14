@@ -17,6 +17,7 @@ pragma experimental ABIEncoderV2;
 
 import "@balancer-labs/v2-interfaces/contracts/standalone-utils/IBalancerRelayer.sol";
 import "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
+import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/SafeERC20.sol";
 
 import "./IBaseRelayerLibrary.sol";
 import "./BalancerRelayer.sol";
@@ -38,6 +39,7 @@ import "./BalancerRelayer.sol";
  */
 contract BaseRelayerLibrary is IBaseRelayerLibrary {
     using Address for address;
+    using SafeERC20 for IERC20;
 
     IVault private immutable _vault;
     IBalancerRelayer private immutable _entrypoint;
@@ -76,12 +78,12 @@ contract BaseRelayerLibrary is IBaseRelayerLibrary {
      * @notice Approves the Vault to use tokens held in the relayer
      * @dev This is needed to avoid having to send intermediate tokens back to the user
      */
-    function approveVault(IERC20 token, uint256 amount) public override {
+    function approveVault(IERC20 token, uint256 amount) public payable override {
         if (_isChainedReference(amount)) {
             amount = _getChainedReferenceValue(amount);
         }
         // TODO: gas golf this a bit
-        token.approve(address(getVault()), amount);
+        token.safeApprove(address(getVault()), amount);
     }
 
     /**

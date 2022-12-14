@@ -151,10 +151,9 @@ export async function deployPool(vault: Vault, tokens: TokenList, poolName: Pool
   const { tokens: allTokens } = await vault.getPoolTokens(poolId);
 
   // ComposableStablePool needs BPT in the initialize userData but ManagedPool doesn't.
-  const initialBalances = (poolName == 'ManagedPool'
-    ? allTokens.filter((t) => t != pool.address)
-    : allTokens
-  ).map((t) => (t == pool.address ? 0 : initialPoolBalance));
+  const initialBalances = (poolName == 'ManagedPool' ? allTokens.filter((t) => t != pool.address) : allTokens).map(
+    (t) => (t == pool.address ? 0 : initialPoolBalance)
+  );
   joinUserData = StablePoolEncoder.joinInit(initialBalances);
 
   await vault.instance.connect(creator).joinPool(poolId, creator.address, creator.address, {
@@ -206,10 +205,16 @@ async function deployPoolFromFactory(
   let factory: Contract;
 
   if (poolName == 'ManagedPool') {
-    const baseFactory = await deploy('v2-pool-weighted/BaseManagedPoolFactory', {
+    const addRemoveTokenLib = await deploy('v2-pool-weighted/ManagedPoolAddRemoveTokenLib');
+    const circuitBreakerLib = await deploy('v2-pool-weighted/CircuitBreakerLib');
+    const baseFactory = await deploy('v2-pool-weighted/ManagedPoolFactory', {
       args: [vault.address, vault.getFeesProvider().address],
+      libraries: {
+        CircuitBreakerLib: circuitBreakerLib.address,
+        ManagedPoolAddRemoveTokenLib: addRemoveTokenLib.address,
+      },
     });
-    factory = await deploy(`${fullName}Factory`, { args: [baseFactory.address] });
+    factory = await deploy('v2-pool-weighted/ControlledManagedPoolFactory', { args: [baseFactory.address] });
   } else if (poolName == 'ComposableStablePool') {
     factory = await deploy(`${fullName}Factory`, { args: [vault.address, vault.getFeesProvider().address] });
   } else {

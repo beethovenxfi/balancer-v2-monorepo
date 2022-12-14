@@ -30,7 +30,10 @@ describe('ERC4626LinearPoolFactory', function () {
 
   sharedBeforeEach('deploy factory & tokens', async () => {
     vault = await Vault.create();
-    factory = await deploy('ERC4626LinearPoolFactory', { args: [vault.address, vault.getFeesProvider().address] });
+    const queries = await deploy('v2-standalone-utils/BalancerQueries', { args: [vault.address] });
+    factory = await deploy('ERC4626LinearPoolFactory', { 
+      args: [vault.address, vault.getFeesProvider().address, queries.address]
+     });
     creationTime = await currentTimestamp();
 
     mainToken = await Token.create({ symbol: 'USD+', decimals: 6 });
@@ -86,12 +89,14 @@ describe('ERC4626LinearPoolFactory', function () {
       expect(await pool.totalSupply()).to.be.equal(MAX_UINT112);
     });
 
-    it('sets no asset managers', async () => {
+    it('sets a rebalancer as the asset manager', async () => {
       const poolId = await pool.getPoolId();
-      await tokens.asyncEach(async (token) => {
-        const info = await vault.getPoolTokenInfo(poolId, token);
-        expect(info.assetManager).to.equal(ZERO_ADDRESS);
-      });
+      // We only check the first token, but this will be the asset manager for both main and wrapped
+      const { assetManager } = await vault.getPoolTokenInfo(poolId, tokens.first);
+
+      const rebalancer = await deployedAt('ERC4626LinearPoolRebalancer', assetManager);
+
+      expect(await rebalancer.getPool()).to.equal(pool.address);
     });
 
     it('sets swap fee', async () => {
