@@ -16,7 +16,7 @@ export default async (task: Task, { force, from }: TaskRunOptions = {}): Promise
     '0x8166994d9ebBe5829EC86Bd81258149B87faCfd3', // masterchef
     '0xa48d959AE2E88f1dAA7D5F611E01908106dE7598', //xboo
     '0xfcef8a994209d6916eb2c86cdd2afd60aa6f54b1', //fbeets
-    '0xb0FC43069089d0fA02baAa896ac2eFcb596D7D05', // test reliquary
+    '0x1ed6411670c709F4e163854654BD52c74E66D7eC', // reliquary
   ];
   const relayerLibrary = await task.deployAndVerify('BatchRelayerLibrary', relayerLibraryArgs, from, force);
 
