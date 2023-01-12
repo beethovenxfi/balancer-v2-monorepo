@@ -114,11 +114,11 @@ contract MockReliquary is
     /**
      * @dev Constructs and initializes the contract.
      * @param _rewardToken The reward token contract address.
-     * @param _emissionCurve The contract address for the EmissionCurve, which will return the emission rate.
+     * @param _emissionRate The contract address for the EmissionCurve, which will return the emission rate. Adapted for mock
      */
-    constructor(address _rewardToken, address _emissionCurve) ERC721("Reliquary Deposit", "RELIC") {
+    constructor(address _rewardToken, uint256 _emissionRate) ERC721("Reliquary Deposit", "RELIC") {
         rewardToken = _rewardToken;
-        emissionCurve = _emissionCurve;
+        emissionCurve = address(new Constant(_emissionRate));
     }
 
     /// @notice Sets a new EmissionCurve for overall rewardToken emissions. Can only be called with the proper role.
@@ -593,33 +593,32 @@ contract MockReliquary is
         position.rewardDebt =
             newAmount * levels[poolId].multipliers[newLevel] * accRewardPerShare / ACC_REWARD_PRECISION;
 
-        bool _harvest = harvestTo != address(0);
-        if (!_harvest && _pendingReward != 0) {
+        if (harvestTo == address(0) && _pendingReward != 0) {
             position.rewardCredit += _pendingReward;
-        } else if (_harvest) {
+        } else if (harvestTo != address(0)) {
             uint total = _pendingReward + position.rewardCredit;
             uint received = _receivedReward(total);
             position.rewardCredit = total - received;
             if (received != 0) {
                 IERC20(rewardToken).safeTransfer(harvestTo, received);
                 address _rewarder = rewarder[poolId];
-                // if (_rewarder != address(0)) {
-                //     IRewarder(_rewarder).onReward(relicId, received, harvestTo);
-                // }
+                if (_rewarder != address(0)) {
+                    IRewarder(_rewarder).onReward(relicId, received, harvestTo);
+                }
             }
         }
 
-        // if (kind == Kind.DEPOSIT) {
-        //     address _rewarder = rewarder[poolId];
-        //     if (_rewarder != address(0)) {
-        //         IRewarder(_rewarder).onDeposit(relicId, amount);
-        //     }
-        // } else if (kind == Kind.WITHDRAW) {
-        //     address _rewarder = rewarder[poolId];
-        //     if (_rewarder != address(0)) {
-        //         IRewarder(_rewarder).onWithdraw(relicId, amount);
-        //     }
-        // }
+        if (kind == Kind.DEPOSIT) {
+            address _rewarder = rewarder[poolId];
+            if (_rewarder != address(0)) {
+                IRewarder(_rewarder).onDeposit(relicId, amount);
+            }
+        } else if (kind == Kind.WITHDRAW) {
+            address _rewarder = rewarder[poolId];
+            if (_rewarder != address(0)) {
+                IRewarder(_rewarder).onWithdraw(relicId, amount);
+            }
+        }
     }
 
     /**
