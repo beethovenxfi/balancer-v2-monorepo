@@ -95,7 +95,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         }
     }
 
-    function reliquaryWithdraw(
+    function reliquaryWithdrawAndHarvest(
         address recipient,
         uint256 relicId,
         uint256 amount,
