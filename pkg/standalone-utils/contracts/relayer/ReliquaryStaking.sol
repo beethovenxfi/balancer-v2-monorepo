@@ -107,8 +107,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
 
         require(msg.sender == _reliquary.ownerOf(relicId), "Sender not owner of relic");
         PositionInfo memory position = _reliquary.getPositionForId(relicId);
-        address poolTokenAddress = _reliquary.poolToken(position.poolId);
-        IERC20 poolToken = IERC20(poolTokenAddress);
+        IERC20 poolToken = IERC20( _reliquary.poolToken(position.poolId));
 
         _reliquary.withdrawAndHarvest(amount, relicId, recipient);
         poolToken.transfer(recipient, amount);

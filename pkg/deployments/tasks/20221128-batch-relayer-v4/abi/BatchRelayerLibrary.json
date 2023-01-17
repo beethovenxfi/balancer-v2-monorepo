@@ -7,16 +7,6 @@
         "type": "address"
       },
       {
-        "internalType": "contract IERC20",
-        "name": "wstETH",
-        "type": "address"
-      },
-      {
-        "internalType": "contract IBalancerMinter",
-        "name": "minter",
-        "type": "address"
-      },
-      {
         "internalType": "contract IMasterChef",
         "name": "masterChef",
         "type": "address"
@@ -690,7 +680,7 @@
         "type": "uint256"
       }
     ],
-    "name": "reliquaryWithdraw",
+    "name": "reliquaryWithdrawAndHarvest",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -714,52 +704,6 @@
       }
     ],
     "name": "setRelayerApproval",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "outputReference",
-        "type": "uint256"
-      }
-    ],
-    "name": "stakeETH",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "outputReference",
-        "type": "uint256"
-      }
-    ],
-    "name": "stakeETHAndWrap",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -962,34 +906,6 @@
       }
     ],
     "name": "unwrapReaperVaultToken",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "sender",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "outputReference",
-        "type": "uint256"
-      }
-    ],
-    "name": "unwrapWstETH",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
@@ -1218,34 +1134,6 @@
       }
     ],
     "name": "wrapReaperVaultToken",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "sender",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "outputReference",
-        "type": "uint256"
-      }
-    ],
-    "name": "wrapStETH",
     "outputs": [],
     "stateMutability": "payable",
     "type": "function"
