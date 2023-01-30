@@ -48,7 +48,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         if (_isChainedReference(amount)) {
             amount = _getChainedReferenceValue(amount);
         }
-        require(_reliquary.poolToken(poolId) == token, "Incorrect token for pid");
+        require(_reliquary.poolToken(poolId) == address(token), "Incorrect token for pid");
 
         // The deposit caller is the implicit sender of tokens, so if the goal is for the tokens
         // to be sourced from outside the relayer, we must first pull them here.
@@ -77,7 +77,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
             amount = _getChainedReferenceValue(amount);
         }
         PositionInfo memory position = _reliquary.getPositionForId(relicId);
-        require(_reliquary.poolToken(position.poolId) == token, "Incorrect token for pid");
+        require(_reliquary.poolToken(position.poolId) == address(token), "Incorrect token for pid");
 
         // The deposit caller is the implicit sender of tokens, so if the goal is for the tokens
         // to be sourced from outside the relayer, we must first pull them here.
@@ -95,7 +95,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
         }
     }
 
-    function reliquaryWithdraw(
+    function reliquaryWithdrawAndHarvest(
         address recipient,
         uint256 relicId,
         uint256 amount,
@@ -107,7 +107,7 @@ abstract contract ReliquaryStaking is IBaseRelayerLibrary {
 
         require(msg.sender == _reliquary.ownerOf(relicId), "Sender not owner of relic");
         PositionInfo memory position = _reliquary.getPositionForId(relicId);
-        IERC20 poolToken = _reliquary.poolToken(position.poolId);
+        IERC20 poolToken = IERC20( _reliquary.poolToken(position.poolId));
 
         _reliquary.withdrawAndHarvest(amount, relicId, recipient);
         poolToken.transfer(recipient, amount);
