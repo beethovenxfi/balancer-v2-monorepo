@@ -4,11 +4,50 @@
 
 ### New Deployments
 
+- Deployed `WeightedPoolFactory` v3 to all networks.
+- Deployed `ComposableStablePoolFactory` v3 to all networks.
+- Deployed `L2GaugeCheckpointer` to Mainnet.
+- Deployed `VeBoostV2` to Mainnet.
+- Deployed `NoProtocolFeeLiquidityBootstrappingPoolFactory` to Gnosis.
+- Deployed `ERC4626LinearPoolFactory` to Gnosis.
+- Deployed `UnbuttonAaveLinearPoolFactory` to Gnosis.
+- Deployed `StablePoolFactory` to Gnosis.
+- Deployed `WeightedPoolFactory` to Gnosis.
+- Deployed `ComposableStablePoolFactory` to Gnosis.
+- Deployed `PoolRecoveryHelper` to Gnosis.
+- Deployed `AaveLinearPoolFactory` to Gnosis.
+- Deployed `GaugeAdderV3` to Mainnet and Goerli.
+- Deployed `TimelockAuthorizerTransitionMigrator` to Mainnet.
+- Deployed `AaveLinearPoolV4` to all networks.
+- Deployed `ERC4626LinearPoolFactory` to Mainnet, Goerli, Arbitrum, Polygon, and Optimism.
+- Deployed `EulerLinearPoolFactory` to Mainnet and Goerli.
+
+### Deprecations
+
+- Deprecated `20221207-aave-rebalanced-linear-pool-v3`.
+- Deprecated `20220425-unbutton-aave-linear-pool`.
+- Deprecated `20220404-erc4626-linear-pool-v2`.
+
+### Breaking Changes
+
+- The `20221115-aave-rebalanced-linear-pool` task was deleted and replaced with `20221207-aave-rebalanced-linear-pool-v3`. The old task had not been used by anyone.
+
+## 3.1.1 (2022-12-01)
+
+### Bugfixes
+
+- Fixed changelog.
+
+## 3.1.0 (2022-12-01)
+
+### New Deployments
+
 - Deployed core infrastructure (`Authorizer`, `Vault`, `AuthorizerAdaptor`, `ProtocolFeeWithdrawer`, `ProtocolFeePercentagesProvider`, `BalancerQueries` and `BatchRelayer`) to Gnosis and BNB.
 - Deployed core Pool factories (`WeightedPoolFactory`, `ComposableStablePoolFactory`, `LiquidityBootstrappingPool`, `AaveLinearPool`) to BNB.
 - Deployed `AuthorizerAdaptorEntrypoint` to all networks.
 - Deployed `AaveLinearPoolFactory` to all networks.
 - Deployed `PoolRecoveryHelper` to all networks.
+- Deployed `ComposableStablePoolFactory` to all networks.
 - Deployed `TimelockAuthorizer` to ethereum mainnet and goerli.
 
 ### Deprecations
