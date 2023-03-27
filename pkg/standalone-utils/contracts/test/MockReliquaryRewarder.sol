@@ -35,11 +35,9 @@ contract MockReliquaryRewarder {
     }
 
     /// @notice Called by Reliquary harvest or withdrawAndHarvest function
-    /// @param relicId The NFT ID of the position
     /// @param rewardAmount Amount of reward token owed for this position from the Reliquary
     /// @param to Address to send rewards to
     function onReward(
-        uint256 relicId,
         uint256 rewardAmount,
         address to
     ) external onlyReliquary {
@@ -61,9 +59,10 @@ contract MockReliquaryRewarder {
 
     /// @notice Returns the amount of pending tokens for a position from this rewarder
     ///         Interface supports multiple tokens
-    /// @param relicId The NFT ID of the position
     /// @param rewardAmount Amount of reward token owed for this position from the Reliquary
-    function pendingTokens(uint256 relicId, uint256 rewardAmount)
+    function pendingTokens(
+    uint256 rewardAmount
+    )
         external
         view
         virtual

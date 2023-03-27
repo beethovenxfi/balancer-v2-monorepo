@@ -19,7 +19,7 @@ import "@balancer-labs/v2-interfaces/contracts/vault/IVault.sol";
 import "@balancer-labs/v2-solidity-utils/contracts/openzeppelin/Address.sol";
 import "@balancer-labs/v2-interfaces/contracts/solidity-utils/openzeppelin/IERC20.sol";
 import "./SushiBarStaking.sol";
-import "@balancer-labs/v2-interfaces/contracts/linear-pool/ITarotSupplyVault.sol";
+import "@balancer-labs/v2-interfaces/contracts/pool-linear/ITarotSupplyVault.sol";
 
 /**
  * @title TarotWrapping
