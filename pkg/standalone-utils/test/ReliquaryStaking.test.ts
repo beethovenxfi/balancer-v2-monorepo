@@ -99,13 +99,13 @@ describe('ReliquaryStaking', function () {
     ]);
   }
 
-  function encodeWithdraw(
+  function encodeWithdrawAndHarvest(
     recipient: Account,
     relicId: number,
     amount: BigNumberish,
     outputReference?: BigNumberish
   ): string {
-    return relayerLibrary.interface.encodeFunctionData('reliquaryWithdraw', [
+    return relayerLibrary.interface.encodeFunctionData('reliquaryWithdrawAndHarvest', [
       TypesConverter.toAddress(recipient),
       relicId,
       amount,
@@ -282,7 +282,7 @@ describe('ReliquaryStaking', function () {
       ).to.be.revertedWith('Incorrect token for pid');
     });
 
-    describe('withdraw', () => {
+    describe('withdraw and harvest', () => {
       it('withraws pool tokens to recipient', async () => {
         await reliquary.addPool(
           100,
@@ -310,10 +310,10 @@ describe('ReliquaryStaking', function () {
 
         await relayer
           .connect(user)
-          .multicall([encodeWithdraw(user, relicId, withdrawalAmountUser, toChainedReference(0))]);
+          .multicall([encodeWithdrawAndHarvest(user, relicId, withdrawalAmountUser, toChainedReference(0))]);
         await relayer
           .connect(user)
-          .multicall([encodeWithdraw(anotherUser, relicId, withdrawalAmountOtherUser, toChainedReference(0))]);
+          .multicall([encodeWithdrawAndHarvest(anotherUser, relicId, withdrawalAmountOtherUser, toChainedReference(0))]);
 
         expect(await poolToken.balanceOf(user.address)).to.equal(withdrawalAmountUser);
         expect(await poolToken.balanceOf(anotherUser.address)).to.equal(withdrawalAmountOtherUser);
@@ -354,7 +354,7 @@ describe('ReliquaryStaking', function () {
 
         await relayer
           .connect(user)
-          .multicall([encodeWithdraw(user, relicId, withdrawalAmountUser, toChainedReference(0))]);
+          .multicall([encodeWithdrawAndHarvest(user, relicId, withdrawalAmountUser, toChainedReference(0))]);
 
         const afterFirstHarvestTimestamp = await currentTimestamp();
 
@@ -366,7 +366,7 @@ describe('ReliquaryStaking', function () {
 
         await relayer
           .connect(user)
-          .multicall([encodeWithdraw(anotherUser, relicId, withdrawalAmountOtherUser, toChainedReference(0))]);
+          .multicall([encodeWithdrawAndHarvest(anotherUser, relicId, withdrawalAmountOtherUser, toChainedReference(0))]);
         const afterSecondHarvestTimestap = await currentTimestamp();
         const expectedSecondRewards = emissionRate.mul(afterSecondHarvestTimestap.sub(afterFirstHarvestTimestamp));
         expect(await emissionToken.balanceOf(anotherUser.address)).to.equal(expectedSecondRewards);
@@ -410,7 +410,7 @@ describe('ReliquaryStaking', function () {
 
         await relayer
           .connect(user)
-          .multicall([encodeWithdraw(user, relicId, withdrawalAmountUser, toChainedReference(0))]);
+          .multicall([encodeWithdrawAndHarvest(user, relicId, withdrawalAmountUser, toChainedReference(0))]);
 
         const afterFirstHarvestTimestamp = await currentTimestamp();
 
@@ -448,7 +448,7 @@ describe('ReliquaryStaking', function () {
         await expect(
           relayer
             .connect(anotherUser)
-            .multicall([encodeWithdraw(anotherUser, relicId, withdrawalAmount, toChainedReference(0))])
+            .multicall([encodeWithdrawAndHarvest(anotherUser, relicId, withdrawalAmount, toChainedReference(0))])
         ).to.be.revertedWith('Sender not owner of relic');
       });
 
