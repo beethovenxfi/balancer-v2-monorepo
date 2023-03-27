@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import '@nomiclabs/hardhat-ethers';
+import '@nomiclabs/hardhat-vyper';
 import '@nomiclabs/hardhat-waffle';
 import 'hardhat-local-networks-config-plugin';
 import 'hardhat-ignore-warnings';
@@ -20,7 +21,7 @@ import { checkArtifact, extractArtifact } from './src/artifact';
 import test from './src/test';
 import Task, { TaskMode } from './src/task';
 import Verifier from './src/verifier';
-import { Logger } from './src/logger';
+import logger, { Logger } from './src/logger';
 import { checkActionIds, checkActionIdUniqueness, saveActionIds } from './src/actionId';
 import { saveContractDeploymentAddresses } from './src/network';
 import { name } from './package.json';
@@ -87,6 +88,7 @@ task('check-deployments', `Check that all tasks' deployments correspond to their
     // way to address type issues.
 
     Logger.setDefaults(false, args.verbose || false);
+    logger.log(`Checking deployments for ${hre.network.name}...`, '');
 
     if (args.id) {
       await new Task(args.id, TaskMode.CHECK, hre.network.name).run(args);
@@ -198,6 +200,7 @@ task('check-action-ids', `Check that contract action-ids correspond the expected
   .addOptionalParam('id', 'Specific task ID')
   .setAction(async (args: { id?: string; verbose?: boolean }, hre: HardhatRuntimeEnvironment) => {
     Logger.setDefaults(false, args.verbose || false);
+    logger.log(`Checking action IDs for ${hre.network.name}...`, '');
 
     if (args.id) {
       const task = new Task(args.id, TaskMode.READ_ONLY, hre.network.name);
@@ -244,6 +247,9 @@ export default {
   solidity: {
     compilers: hardhatBaseConfig.compilers,
     overrides: { ...hardhatBaseConfig.overrides(name) },
+  },
+  vyper: {
+    compilers: [{ version: '0.3.1' }, { version: '0.3.3' }],
   },
   paths: {
     sources: './tasks',

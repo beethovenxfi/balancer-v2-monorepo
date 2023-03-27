@@ -4,6 +4,26 @@
 
 ### New Deployments
 
+- Deployed `BatchRelayerLibrary` V5 to all networks.
+- Deployed `L2BalancerPseudoMinter` to Goerli, Arbitrum, Polygon, Optimism and Gnosis.
+- Deployed `VotingEscrowDelegationProxy` and `NullVotingEscrow` to Goerli, Arbitrum, Polygon, Optimism and Gnosis.
+- Deployed `WeightedPoolFactory` V4 to all networks.
+- Deployed `ComposableStablePoolFactory` V4 to all networks.
+
+### Deprecations
+
+- Deprecated `20220916-batch-relayer-v4`.
+- Deprecated `20230206-weighted-pool-v3`.
+- Deprecated `20230206-composable-stable-pool-v3`.
+
+## 3.2.0 (2023-02-24)
+
+### New Networks
+
+- Deployed all L2 contracts to Avalanche.
+
+### New Deployments
+
 - Deployed `WeightedPoolFactory` v3 to all networks.
 - Deployed `ComposableStablePoolFactory` v3 to all networks.
 - Deployed `L2GaugeCheckpointer` to Mainnet.
@@ -21,12 +41,23 @@
 - Deployed `AaveLinearPoolV4` to all networks.
 - Deployed `ERC4626LinearPoolFactory` to Mainnet, Goerli, Arbitrum, Polygon, and Optimism.
 - Deployed `EulerLinearPoolFactory` to Mainnet and Goerli.
+- Deployed `YearnLinearPoolFactory` to Mainnet, Goerli, Arbitrum, Polygon, and Optimism.
+- Deployed `GearboxLinearPoolFactory` to Mainnet and Goerli.
+- Deployed `ChildChainLiquidityGaugeFactory`, `ChildChainStreamer`, and `RewardsOnlyGauge` to Gnosis.
+- Deployed `ChildChainGaugeTokenAdder` to Gnosis.
+- Deployed `ChildChainGaugeRewardHelper` to Gnosis.
+- Deployed `GnosisRootGaugeFactory` to Mainnet.
+- Deployed `MerkleOrchard` V2 to Mainnet, Goerli, Arbitrum and Polygon.
+- Deployed `SingleRecipientGaugeFactory` V2 to Mainnet and Goerli.
+- Deployed `ProtocolIdRegistry` to Mainnet, Goerli, Arbitrum, Polygon, Optimism and Gnosis.
 
 ### Deprecations
 
 - Deprecated `20221207-aave-rebalanced-linear-pool-v3`.
 - Deprecated `20220425-unbutton-aave-linear-pool`.
 - Deprecated `20220404-erc4626-linear-pool-v2`.
+- Deprecated `20220325-gauge-adder`.
+- Deprecated `20220628-gauge-adder-v2`.
 
 ### Breaking Changes
 

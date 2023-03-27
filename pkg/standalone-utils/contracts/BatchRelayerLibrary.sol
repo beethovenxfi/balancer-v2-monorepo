@@ -19,11 +19,15 @@ import "./relayer/BaseRelayerLibrary.sol";
 
 import "./relayer/AaveWrapping.sol";
 import "./relayer/ERC4626Wrapping.sol";
+import "./relayer/EulerWrapping.sol";
 import "./relayer/GaugeActions.sol";
+import "./relayer/GearboxWrapping.sol";
 import "./relayer/LidoWrapping.sol";
+import "./relayer/CompoundV2Wrapping.sol";
 import "./relayer/UnbuttonWrapping.sol";
-import "./relayer/YearnWrapping.sol";
 import "./relayer/ReaperWrapping.sol";
+import "./relayer/TetuWrapping.sol";
+import "./relayer/SiloWrapping.sol";
 import "./relayer/BeefyWrapping.sol";
 import "./relayer/MasterChefStaking.sol";
 import "./relayer/FBeetsBarStaking.sol";
@@ -32,6 +36,7 @@ import "./relayer/ReliquaryStaking.sol";
 import "./relayer/TarotWrapping.sol";
 import "./relayer/VaultActions.sol";
 import "./relayer/VaultPermit.sol";
+import "./relayer/YearnWrapping.sol";
 
 /**
  * @title Batch Relayer Library
@@ -41,8 +46,15 @@ import "./relayer/VaultPermit.sol";
 contract BatchRelayerLibrary is
     BaseRelayerLibrary,
     ERC4626Wrapping,
-    YearnWrapping,
-    ReaperWrapping
+    EulerWrapping,
+    GaugeActions,
+    GearboxWrapping,
+    LidoWrapping,
+    UnbuttonWrapping,
+    CompoundV2Wrapping,
+    ReaperWrapping,
+    SiloWrapping,
+    TetuWrapping,    
     BeefyWrapping,
     MasterChefStaking,
     BooMirrorWorldStaking,
@@ -50,7 +62,8 @@ contract BatchRelayerLibrary is
     ReliquaryStaking,
     TarotWrapping,
     VaultActions,
-    VaultPermit
+    VaultPermit,
+    YearnWrapping
 {
     constructor(
         IVault vault,
