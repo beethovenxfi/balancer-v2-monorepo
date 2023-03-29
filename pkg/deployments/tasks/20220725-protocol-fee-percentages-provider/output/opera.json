@@ -1,4 +1,5 @@
 {
-  "ProtocolFeePercentagesProvider": "0xDF2A2AC734416bA9CF8C2368b9e88E1a916193E3",
+  "note": "this is the address for the PoolSpecificProtocolFeePercentagesProvider",
+  "ProtocolFeePercentagesProvider": "0xe101551C4772F771FEDEBecc786931E61000657C",
   "timestamp": 1661358946716
 }
